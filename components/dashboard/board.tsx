@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { motion } from "motion/react";
 import { createClient } from "@/lib/supabase/client";
+import { authorizeRealtime } from "@/lib/supabase/realtime";
 import { formatContainerNumber, formatUsd } from "@/lib/money";
 import { cityFromAddress, portDate, shortDate } from "@/lib/dates";
 import { stateFromAddress } from "@/lib/money";
@@ -43,26 +44,33 @@ export function Board({
   // Status changes from calls, bookings and the provider's phone land here live.
   useEffect(() => {
     const supabase = createClient();
-    const channel = supabase
-      .channel("board")
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "containers" }, (p) => {
-        const next = p.new as Container;
-        setRows((rs) => rs.map((r) => (r.container.id === next.id ? { ...r, container: { ...r.container, ...next } } : r)));
-      })
-      .on("postgres_changes", { event: "*", schema: "public", table: "bookings" }, (p) => {
-        const b = p.new as Booking;
-        if (!b?.container_id) return;
-        setRows((rs) =>
-          rs.map((r) =>
-            r.container.id === b.container_id
-              ? { ...r, booking: { ...(r.booking ?? { provider: null }), ...b, provider: r.booking?.provider ?? null } as BookingLite }
-              : r,
-          ),
-        );
-      })
-      .subscribe();
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    let cancelled = false;
+    (async () => {
+      await authorizeRealtime(supabase);
+      if (cancelled) return;
+      channel = supabase
+        .channel("board")
+        .on("postgres_changes", { event: "UPDATE", schema: "public", table: "containers" }, (p) => {
+          const next = p.new as Container;
+          setRows((rs) => rs.map((r) => (r.container.id === next.id ? { ...r, container: { ...r.container, ...next } } : r)));
+        })
+        .on("postgres_changes", { event: "*", schema: "public", table: "bookings" }, (p) => {
+          const b = p.new as Booking;
+          if (!b?.container_id) return;
+          setRows((rs) =>
+            rs.map((r) =>
+              r.container.id === b.container_id
+                ? { ...r, booking: { ...(r.booking ?? { provider: null }), ...b, provider: r.booking?.provider ?? null } as BookingLite }
+                : r,
+            ),
+          );
+        })
+        .subscribe();
+    })();
     return () => {
-      supabase.removeChannel(channel);
+      cancelled = true;
+      if (channel) supabase.removeChannel(channel);
     };
   }, []);
 

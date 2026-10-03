@@ -91,7 +91,8 @@ void runScript(async (r) => {
       "call-wall",
       async () => {
         await page.goto(`${baseUrl}/containers/${containerId}`);
-        await page.locator('[data-testid="call-wall"]').waitFor({ state: "visible" });
+        // Click only once the page is hydrated and its Realtime channel is live, or the click (and early events) are lost.
+        await page.locator('[data-testid="call-wall"][data-realtime="on"]').waitFor({ state: "visible", timeout: 60_000 });
         await page.locator('[data-testid="get-quotes"]').click();
         await page.locator('[data-testid="call-card"][data-status="in_progress"]').first().waitFor({ state: "visible", timeout: 120_000 });
         await settle(page, 6000);

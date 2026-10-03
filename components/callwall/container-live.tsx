@@ -207,7 +207,7 @@ export function ContainerLive({
         </section>
 
         {/* Call Wall */}
-        <section className="pt-6" data-testid="call-wall" aria-label="Call wall">
+        <section className="pt-6" data-testid="call-wall" data-realtime={connected ? "on" : "off"} aria-label="Call wall">
           <div className="mb-4 flex flex-wrap items-end justify-between gap-4">
             <div>
               <h2 className="font-display text-2xl font-black uppercase tracking-tight font-wide">Call wall</h2>
