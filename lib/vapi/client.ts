@@ -35,11 +35,29 @@ export async function vapiRequest(method: "GET" | "POST" | "PATCH", path: string
 }
 
 const CreatedCall = z.object({ id: z.string().min(1) });
+const CallState = z.object({ status: z.string().optional(), endedReason: z.string().optional() }).passthrough();
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+const MAX_DIALS = 3;
 
 /**
- * Place one outbound call with the saved assistant. Our calls.id travels three ways (name,
- * customer.externalId, assistantOverrides.metadata.callId) because POST /call has no top-level
- * metadata field and the first webhooks can beat the vapi_call_id write.
+ * A call that never starts (Vapi could not get a phone line from the provider: call.start.error-*) ends within
+ * seconds and sends no webhook, so the run would wait out its timeout. Check briefly; null means it started.
+ */
+async function startFailure(vapiCallId: string): Promise<string | null> {
+  for (let i = 0; i < 3; i++) {
+    await sleep(1500);
+    const state = CallState.safeParse(await vapiRequest("GET", `/call/${vapiCallId}`).catch(() => null));
+    if (!state.success) continue;
+    if (state.data.status === "ended" && state.data.endedReason?.startsWith("call.start.error")) return state.data.endedReason;
+    if (state.data.status && state.data.status !== "queued") return null;
+  }
+  return null;
+}
+
+/**
+ * Place one outbound call with the saved assistant, redialing up to twice if the phone line could not be
+ * opened. Our calls.id travels three ways (name, customer.externalId, assistantOverrides.metadata.callId)
+ * because POST /call has no top-level metadata field and the first webhooks can beat the vapi_call_id write.
  */
 export async function createVapiCall(args: {
   callId: string;
@@ -51,14 +69,22 @@ export async function createVapiCall(args: {
   if (!/^\+[1-9]\d{6,14}$/.test(args.customerNumber)) {
     throw new Error(`Vapi needs an E.164 phone number like +14155551234, got "${args.customerNumber}"`);
   }
-  const json = await vapiRequest("POST", "/call", {
+  const body = {
     name: args.callId,
     assistantId: VAPI_ASSISTANT_ID,
     phoneNumberId: VAPI_PHONE_NUMBER_ID,
     customer: { number: args.customerNumber, name: args.customerName, externalId: args.callId },
     assistantOverrides: { variableValues: args.variableValues, metadata: { callId: args.callId } },
-  });
-  const parsed = CreatedCall.safeParse(json);
-  if (!parsed.success) throw new Error(`Vapi create call answered without a call id: ${JSON.stringify(json).slice(0, 300)}`);
-  return { vapiCallId: parsed.data.id };
+  };
+  let lastReason = "";
+  for (let attempt = 1; attempt <= MAX_DIALS; attempt++) {
+    const json = await vapiRequest("POST", "/call", body);
+    const parsed = CreatedCall.safeParse(json);
+    if (!parsed.success) throw new Error(`Vapi create call answered without a call id: ${JSON.stringify(json).slice(0, 300)}`);
+    const reason = await startFailure(parsed.data.id);
+    if (!reason) return { vapiCallId: parsed.data.id };
+    lastReason = reason;
+    console.warn(`[vapi] call ${parsed.data.id} did not start (${reason}); dial ${attempt} of ${MAX_DIALS}`);
+  }
+  throw new Error(`the phone line could not be opened after ${MAX_DIALS} tries (${lastReason})`);
 }
