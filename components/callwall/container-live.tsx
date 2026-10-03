@@ -300,41 +300,51 @@ export function ContainerLive({
                 className="mt-8 grid scroll-mt-20 gap-6 lg:grid-cols-[minmax(0,1fr)_360px]"
                 data-testid="ranking-reveal"
               >
-                <div className="relative overflow-hidden rounded-[18px] border border-[#E8D98A] bg-[#FFF8CF] shadow-[0_18px_40px_-28px_rgba(120,90,0,0.6)]">
-                  <div className="absolute inset-y-0 left-[54px] w-[1.5px] bg-red/50" aria-hidden />
-                  <div className="absolute inset-y-0 left-[58px] w-[1.5px] bg-red/30" aria-hidden />
-                  <div className="flex h-full flex-col py-6 pl-[78px] pr-7">
-                    <div className="flex flex-wrap items-center gap-3">
-                      <h3 className="font-cond text-[15px] font-bold text-fg">{recEngine === "fixture" ? "Fixture ranking" : "Claude's call"}</h3>
-                      {recEngine === "fixture" && <span className="rounded-full border border-red/40 px-2 text-[11.5px] font-semibold text-red">dev only, not Claude</span>}
-                    </div>
-                    <div className="mt-2 min-h-[160px] flex-1 bg-[repeating-linear-gradient(180deg,transparent_0_31px,rgba(36,83,214,0.18)_31px_32px)]">
-                      <Typewriter text={recommendation.reasoning ?? ""} />
-                      {/* The math under the words: all-in + demurrage = what it really costs, one ruled line per carrier */}
-                      {rankedQuotes.length > 0 && (
-                        <motion.ol
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          transition={{ delay: Math.min(((recommendation.reasoning ?? "").length * 14) / 1000, 6), duration: 0.4 }}
-                          className="mt-[32px] font-mono text-[14.5px] leading-[32px] text-fg"
-                        >
-                          {rankedQuotes.map((q, i) => (
-                            <li key={q.id} className="flex items-baseline gap-3">
-                              <span className="w-5 shrink-0 text-muted">{i + 1}.</span>
-                              <span className={`min-w-0 truncate font-sans font-semibold ${i === 0 ? "marker" : ""}`} data-on={i === 0}>
-                                {providerMap.get(q.provider_id ?? "")?.name ?? "Carrier"}
-                              </span>
-                              <span className="ml-auto hidden shrink-0 whitespace-nowrap text-muted sm:inline">
-                                {formatUsd(q.all_in_cents)}
-                                <span className={(q.projected_demurrage_cents ?? 0) > 0 ? "text-red" : ""}> + {formatUsd(q.projected_demurrage_cents ?? 0)}</span> =
-                              </span>
-                              <span className={`ml-auto w-[92px] shrink-0 text-right sm:ml-0 font-semibold ${i === 0 ? "text-live" : "text-fg"}`}>{formatUsd(q.risk_adjusted_cents)}</span>
-                            </li>
-                          ))}
-                        </motion.ol>
-                      )}
-                    </div>
+                <div className="panel flex flex-col p-6 sm:p-7">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <h3 className="font-cond text-[15px] font-bold uppercase tracking-[0.06em] text-muted">{recEngine === "fixture" ? "Fixture ranking" : "Claude's call"}</h3>
+                    {recEngine === "fixture" && <span className="rounded-full border border-red/40 px-2 text-[11.5px] font-semibold text-red">dev only, not Claude</span>}
                   </div>
+                  <div className="mt-3 max-w-[68ch]">
+                    <Typewriter text={recommendation.reasoning ?? ""} />
+                  </div>
+                  {/* The math under the words: all-in + demurrage = what it really costs */}
+                  {rankedQuotes.length > 0 && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: Math.min(((recommendation.reasoning ?? "").length * 14) / 1000, 6), duration: 0.4 }}
+                      className="mt-auto pt-6"
+                    >
+                      <table className="w-full text-[14px]">
+                        <thead>
+                          <tr className="border-b border-rule text-left text-[12px] text-muted">
+                            <th className="pb-2 font-medium">Carrier</th>
+                            <th className="hidden pb-2 text-right font-medium sm:table-cell">All-in</th>
+                            <th className="hidden pb-2 text-right font-medium sm:table-cell">Demurrage</th>
+                            <th className="pb-2 text-right font-medium">Real cost</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {rankedQuotes.map((q, i) => (
+                            <tr key={q.id} className="border-b border-rule last:border-0">
+                              <td className="py-2.5 pr-3">
+                                <span className="inline-flex min-w-0 items-center gap-2">
+                                  <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-full text-[11px] font-bold ${i === 0 ? "bg-live text-white" : "bg-panel-2 text-muted ring-1 ring-rule"}`}>{i + 1}</span>
+                                  <span className="truncate font-semibold text-fg">{providerMap.get(q.provider_id ?? "")?.name ?? "Carrier"}</span>
+                                </span>
+                              </td>
+                              <td className="hidden py-2.5 text-right font-mono text-muted sm:table-cell">{formatUsd(q.all_in_cents)}</td>
+                              <td className={`hidden py-2.5 text-right font-mono sm:table-cell ${(q.projected_demurrage_cents ?? 0) > 0 ? "text-red" : "text-muted"}`}>
+                                {(q.projected_demurrage_cents ?? 0) > 0 ? `+${formatUsd(q.projected_demurrage_cents)}` : "$0"}
+                              </td>
+                              <td className={`py-2.5 text-right font-mono font-semibold ${i === 0 ? "text-live" : "text-fg"}`}>{formatUsd(q.risk_adjusted_cents)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </motion.div>
+                  )}
                 </div>
 
                 <div className="panel relative overflow-hidden p-6">
