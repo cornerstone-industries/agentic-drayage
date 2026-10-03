@@ -26,7 +26,8 @@ export function JourneyTrack({ status, eta, compact = false }: { status: string 
   const quoting = status === "quoting";
   const pct = (idx / (STATIONS.length - 1)) * 100;
   return (
-    <div className={`relative ${compact ? "h-7" : "h-16"} w-full`} aria-label={`Journey: ${quoting ? "Getting quotes" : STATIONS[idx]}`}>
+    // Inset by half the box width so the end stations and the box never spill past the column.
+    <div className={`relative ${compact ? "h-7" : "h-16"} mx-[15px]`} aria-label={`Journey: ${quoting ? "Getting quotes" : STATIONS[idx]}`}>
       <div className={`absolute left-0 right-0 ${compact ? "top-[13px]" : "top-[13px]"} h-px bg-line`} />
       <motion.div
         className="absolute left-0 top-[13px] h-px bg-sodium shadow-[0_0_8px_var(--sodium)]"
@@ -41,7 +42,13 @@ export function JourneyTrack({ status, eta, compact = false }: { status: string 
           <div key={s} className="absolute top-[9px] -translate-x-1/2" style={{ left: `${left}%` }}>
             <div className={`mx-auto h-[9px] w-[9px] rotate-45 border ${lit ? "border-sodium bg-sodium" : "border-dim bg-ink"}`} />
             {!compact && (
-              <div className={`mt-2.5 whitespace-nowrap text-center font-mono text-[10.5px] ${i === idx ? "text-fg" : lit ? "text-muted" : "text-dim"}`}>{s}</div>
+              <div
+                className={`absolute mt-2.5 whitespace-nowrap font-mono text-[10.5px] ${i === idx ? "text-fg" : lit ? "text-muted" : "text-dim"} ${
+                  i === 0 ? "left-[-10px]" : i === STATIONS.length - 1 ? "right-[-10px]" : "left-1/2 -translate-x-1/2"
+                } ${i !== idx && i !== 0 && i !== STATIONS.length - 1 ? "hidden sm:block" : ""}`}
+              >
+                {s}
+              </div>
             )}
           </div>
         );
