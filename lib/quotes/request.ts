@@ -30,6 +30,8 @@ export type StartQuoteResult = {
 const CLOSED = new Set(["booked", "accepted", "picked_up", "delivered"]);
 /** Live calls get this long before the run is ranked with whatever was heard. */
 const LIVE_TIMEOUT_MS = 3 * 60_000 + 10_000;
+/** How long after dialing to check that Vapi actually started each call. */
+const START_CHECK_MS = 8_000;
 
 /** NANP's fictional range (NXX-555-0100 to 0199): seeded demo phones that can never answer. */
 export const PLACEHOLDER_PHONE = /^\+1\d{3}55501\d{2}$/;
@@ -164,6 +166,30 @@ export async function startQuoteRequest(args: {
         }
       }),
     );
+    // Vapi accepts a call and only then asks the carrier to dial; a refused dial (the Telnyx trial's dials-per-hour
+    // cap shows as call.start.error-get-transport) ends the call without any webhook, leaving it "queued" until the
+    // 3 minute timeout. Check each call a few seconds in and fail the ones that never started.
+    runInBackground("live-start-check", async () => {
+      await sleep(START_CHECK_MS);
+      const { vapiRequest } = await import("@/lib/vapi/client");
+      const { data: queued } = await db.from("calls").select("id, vapi_call_id").eq("quote_request_id", qr.id).eq("status", "queued");
+      let failedAny = false;
+      for (const row of queued ?? []) {
+        if (!row.vapi_call_id) continue;
+        const vc = (await vapiRequest("GET", `/call/${row.vapi_call_id}`).catch(() => null)) as { status?: string; endedReason?: string } | null;
+        if (vc?.status !== "ended" || !vc.endedReason?.startsWith("call.start")) continue;
+        failedAny = true;
+        const provider = calls.find((c) => c.callId === row.id)?.providerName ?? "Carrier";
+        const message = `the phone line refused the dial (${vc.endedReason})`;
+        await db
+          .from("calls")
+          .update({ status: "failed", ended_at: new Date().toISOString(), summary: `Call could not be placed: ${message}` })
+          .eq("id", row.id)
+          .eq("status", "queued");
+        await logEvent(db, container.id, "call_failed", { call_id: row.id, provider_name: provider, error: message });
+      }
+      if (failedAny) await finalizeQuoteRequest(qr.id);
+    });
     // Rank with whatever was heard if a call never reports back.
     runInBackground("live-timeout", async () => {
       await sleep(LIVE_TIMEOUT_MS);
