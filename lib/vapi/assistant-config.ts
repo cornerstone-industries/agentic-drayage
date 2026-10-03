@@ -48,7 +48,16 @@ export function buildAssistantConfig({ webhookUrl, webhookSecret }: AssistantCon
     },
     // Cartesia Sonic is the lowest-latency voice in Vapi; "Iris", a warm conversational American voice.
     voice: { provider: "cartesia", model: "sonic-3", voiceId: "c894559e-d529-4d70-a6fb-3330ecf7ef6b", generationConfig: { speed: 1.1 } },
-    transcriber: { provider: "deepgram", model: "nova-3", language: "en" },
+    // Deepgram Flux detects end-of-turn with its own model (Vapi: leave smartEndpointingPlan unset), replacing the
+    // nova-3 final-transcript wait that ran 0.3-0.9s per turn. nova-3 is the fallback if Flux fails mid-call.
+    transcriber: {
+      provider: "deepgram",
+      model: "flux-general-en",
+      language: "en",
+      eotThreshold: 0.7,
+      eotTimeoutMs: 3000,
+      fallbackPlan: { transcribers: [{ provider: "deepgram", model: "nova-3", language: "en" }] },
+    },
     // Turn latency on the first live call averaged 3.3s, mostly waiting to decide the dispatcher had
     // finished. These cut the default 1.5s no-punctuation wait while giving spoken numbers a beat.
     startSpeakingPlan: {
