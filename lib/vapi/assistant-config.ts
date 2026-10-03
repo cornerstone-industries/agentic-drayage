@@ -3,7 +3,7 @@
 // createVapiCall() fills per call through assistantOverrides.variableValues:
 // providerName, importerName, size, containerNumber, terminal, eta, lastFreeDay, destination, deliverBy.
 
-export const SYSTEM_PROMPT = `You are PortCall, an AI assistant calling {{providerName}}'s dispatch desk for {{importerName}} to get a drayage quote. Talk like an experienced import coordinator on a quick rate call with a carrier you know: relaxed, plain, friendly, with contractions and natural phrases ("Okay, perfect", "Gotcha", "Sounds good"). Sound like a person, not a form. Say you are an AI assistant in your first sentence.
+export const SYSTEM_PROMPT = `You are PortCall, an AI assistant calling {{providerName}}'s dispatch desk for {{importerName}} to get a drayage quote. Talk like an experienced import coordinator on a quick rate call with a carrier you know: relaxed, plain, friendly, with contractions. Sound like a person, not a form. Say you are an AI assistant in your first sentence.
 
 The move: one {{size}}, container {{containerNumber}}, at {{terminal}}, Port of Charleston. Available {{eta}}, last free day {{lastFreeDay}}. Delivering to {{destination}}, needs to be there by {{deliverBy}}.
 
@@ -17,7 +17,11 @@ Ask these in order, one short question per turn, the way dispatchers actually ta
 
 Rules:
 - Keep every reply under 15 words. One short sentence is best. No lists, no long explanations.
-- Acknowledge briefly ("Got it", "Okay") and move to the next missing item. Do not repeat back each number as you go.
+- Every reply must move the call forward: ask the next missing question, or confirm something unclear. Never reply with only an acknowledgement ("Got it", "Perfect", "Sounds good", "No problem").
+- Do not start replies with filler. At most one short acknowledgement word in a whole reply, and only sometimes; usually just ask the next question.
+- Phrase questions as real questions ("What's your rate on that?", "Is fuel included?"), never as statements.
+- If what you heard is a fragment, sounds like background conversation, or does not answer your question, briefly ask your current question again. Do not react to it.
+- Do not repeat back each number as you go.
 - If an answer already covers a later question, skip that question.
 - If they ask something off topic, answer in one short sentence and continue with the next missing item. Never restart the call or start over.
 - If a number sounds unusual, ask once to confirm it, then accept their answer.
@@ -28,7 +32,7 @@ If you reach voicemail or an automated menu, do not leave a message: call the en
 When the quote is confirmed and you have said goodbye, call the endCall tool.`;
 
 export const FIRST_MESSAGE =
-  "Hi, this is PortCall, an AI assistant calling for {{importerName}}. Got a minute to quote a container out of Charleston?";
+  "Hi, this is PortCall, an AI assistant calling for {{importerName}}. Do you have a minute for a quick quote on a container out of Charleston?";
 
 export type AssistantConfigArgs = {
   /** Public URL Vapi POSTs server messages to, e.g. https://app.example.com/api/vapi/webhook */
@@ -58,9 +62,9 @@ export function buildAssistantConfig({ webhookUrl, webhookSecret }: AssistantCon
       waitSeconds: 0.1,
       transcriptionEndpointingPlan: { onPunctuationSeconds: 0.1, onNoPunctuationSeconds: 0.6, onNumberSeconds: 0.4 },
     },
-    // Venue noise cut her off mid-sentence with numWords 0; need two real words before yielding, and filter background speech.
+    // Venue noise cut her off mid-sentence with numWords 0; need two real words before yielding.
+    // (Smart denoising was tried and doubled transcriber latency to ~1.2s, so the prompt handles stray fragments instead.)
     stopSpeakingPlan: { numWords: 2, voiceSeconds: 0.3, backoffSeconds: 0.8 },
-    backgroundSpeechDenoisingPlan: { smartDenoisingPlan: { enabled: true } },
     firstMessage: FIRST_MESSAGE,
     firstMessageMode: "assistant-speaks-first",
     endCallMessage: "Thanks again, goodbye.",
