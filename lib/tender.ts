@@ -145,25 +145,30 @@ async function accept(db: AdminClient, l: Loaded): Promise<boolean> {
 
 async function decline(db: AdminClient, l: Loaded): Promise<boolean> {
   const { booking, container } = l;
-  if (booking.tender_status === "declined") return false;
   if (booking.tender_status === "accepted") throw new TenderError(409, "This tender was already accepted: contact the importer to cancel it");
-  const piId = booking.stripe_payment_intent_id;
-  if (piId) await cancelHold(piId, booking.id);
 
-  const { data: declined, error } = await db.from("bookings").update({ tender_status: "declined" }).eq("id", booking.id).eq("tender_status", "sent").select("id");
-  if (error) throw new Error(`booking update failed: ${error.message}`);
-  if (declined?.length) {
-    // The importer can book another quote (or this one again) from the same recommendation.
+  // Claim the decline first: if Accept won the race, the hold must stay on the card.
+  let changed = false;
+  if (booking.tender_status !== "declined") {
+    const { data: declined, error } = await db.from("bookings").update({ tender_status: "declined" }).eq("id", booking.id).eq("tender_status", "sent").select("id");
+    if (error) throw new Error(`booking update failed: ${error.message}`);
+    if (!declined?.length) return false;
+    changed = true;
+    // The importer can book the next-ranked quote from the same recommendation.
     await must(db.from("containers").update({ status: "quoted" }).eq("id", container.id), "container update");
     await logEvent(db, container.id, "declined", who(l));
   }
-  if (piId) {
+
+  // Release the hold. A repeat Decline retries this if Stripe failed the first time.
+  const piId = booking.stripe_payment_intent_id;
+  if (piId && booking.payment_status === "authorized") {
+    await cancelHold(piId, booking.id);
     const { data: released } = await db.from("bookings").update({ payment_status: "canceled" }).eq("id", booking.id).eq("payment_status", "authorized").select("id");
     if (released?.length) {
       await logEvent(db, container.id, "payment_canceled", { ...who(l), amount_cents: booking.amount_cents, payment_intent_id: piId, reason: "tender_declined" });
     }
   }
-  return Boolean(declined?.length);
+  return changed;
 }
 
 async function pickedUp(db: AdminClient, l: Loaded): Promise<boolean> {

@@ -50,8 +50,16 @@ export function ContainerLive({
     for (const q of state.quotes) if (q.call_id) m.set(q.call_id, q);
     return m;
   }, [state.quotes]);
-  const booking = state.bookings.find((b) => b.payment_status !== "canceled") ?? state.bookings[0] ?? null;
+  // A declined tender is over: the importer books the next-ranked carrier that has not declined.
+  const booking = state.bookings.find((b) => b.payment_status !== "canceled" && b.tender_status !== "declined") ?? null;
+  const declinedBy = state.bookings.filter((b) => b.tender_status === "declined").map((b) => b.provider_id);
   const winnerQuote = recommendation ? state.quotes.find((q) => q.id === recommendation.winner_quote_id) : undefined;
+  const bookQuote = recommendation
+    ? (recommendation.ranked_quote_ids?.length ? recommendation.ranked_quote_ids : [recommendation.winner_quote_id])
+        .map((id) => state.quotes.find((q) => q.id === id))
+        .find((q) => q && q.all_in_cents != null && !declinedBy.includes(q.provider_id))
+    : undefined;
+  const lastDeclined = declinedBy.length ? providerMap.get(declinedBy[declinedBy.length - 1] ?? "")?.name : undefined;
   const recEvent = [...events].reverse().find((e) => e.type === "recommended");
   const recEngine = ((recEvent?.payload ?? {}) as { engine?: string }).engine;
 
@@ -292,13 +300,13 @@ export function ContainerLive({
                 <div className="panel relative overflow-hidden p-6">
                   {booking ? (
                     <BookingStatus booking={booking} providerName={providerMap.get(booking.provider_id ?? "")?.name ?? "Carrier"} containerStatus={c.status} />
-                  ) : winnerQuote ? (
+                  ) : bookQuote ? (
                     <>
-                      <div className="text-[13px] text-muted">Recommended</div>
-                      <div className="mt-1 font-cond text-[26px] font-bold leading-tight text-fg">{providerMap.get(winnerQuote.provider_id ?? "")?.name}</div>
-                      <div className="mt-1 font-mono text-[30px] font-semibold text-fg">{formatUsd(winnerQuote.all_in_cents)}</div>
-                      <button type="button" className="btn-primary mt-5 w-full" disabled={booking_} onClick={() => book(winnerQuote.id)} data-testid="book">
-                        {booking_ ? "Authorizing card..." : `Book for ${formatUsd(winnerQuote.all_in_cents)}`}
+                      <div className={`text-[13px] ${lastDeclined ? "text-red" : "text-muted"}`}>{lastDeclined ? `${lastDeclined} declined. Next best` : "Recommended"}</div>
+                      <div className="mt-1 font-cond text-[26px] font-bold leading-tight text-fg">{providerMap.get(bookQuote.provider_id ?? "")?.name}</div>
+                      <div className="mt-1 font-mono text-[30px] font-semibold text-fg">{formatUsd(bookQuote.all_in_cents)}</div>
+                      <button type="button" className="btn-primary mt-5 w-full" disabled={booking_} onClick={() => book(bookQuote.id)} data-testid="book">
+                        {booking_ ? "Authorizing card..." : `Book for ${formatUsd(bookQuote.all_in_cents)}`}
                       </button>
                       <p className="mt-3 text-[13px] leading-relaxed text-muted">Holds your card now. The carrier gets paid through Stripe when they mark it delivered.</p>
                       {autoNote && (
@@ -311,6 +319,8 @@ export function ContainerLive({
                       {!autoNote && autoBook.enabled && <p className="mt-3 text-[13px] text-muted">Auto-book is on under {formatUsd(autoBook.limitCents)}.</p>}
                       {bookError && <p className="mt-3 rounded-[12px] border border-red/30 bg-red/5 px-3 py-2 text-[13px] text-red">{bookError}</p>}
                     </>
+                  ) : lastDeclined ? (
+                    <p className="text-[13.5px] text-red">{lastDeclined} declined, and no other carrier quoted a price for this box.</p>
                   ) : null}
                 </div>
               </motion.section>

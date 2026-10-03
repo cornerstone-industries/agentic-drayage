@@ -1,6 +1,7 @@
 // Shared by the demo scripts: the service-role client, the scripted demo container, a clean reset of
 // everything a quote run leaves on it, and the PASS/FAIL reporter every script prints through.
 // Nothing here reads the environment at import time, so dotenv in the calling script still wins.
+import { cancelOpenHolds } from "@/lib/demo-reset";
 import { createAdminClient, type AdminClient } from "@/lib/supabase/admin";
 import type { Container } from "@/lib/types";
 
@@ -37,7 +38,7 @@ export async function findDemoContainer(db: AdminClient = getAdmin()): Promise<C
 
 export type ResetSummary = {
   container: Container;
-  removed: { bookings: number; recommendations: number; quote_requests: number; quotes: number; events: number };
+  removed: { holds: number; bookings: number; recommendations: number; quote_requests: number; quotes: number; events: number };
 };
 
 async function removed(label: string, deletion: PromiseLike<{ count: number | null; error: { message: string } | null }>): Promise<number> {
@@ -49,11 +50,12 @@ async function removed(label: string, deletion: PromiseLike<{ count: number | nu
 /**
  * Back to the pre-quote state: deletes the demo container's quote requests (which cascade to calls,
  * transcript lines and their quotes), recommendations, bookings and events, and sets it to inbound.
- * Stripe objects from earlier bookings are not touched.
+ * Open Stripe card holds on its bookings are canceled first (same as the in-app Reset button).
  */
 export async function resetDemoContainer(db: AdminClient = getAdmin()): Promise<ResetSummary> {
   const container = await findDemoContainer(db);
   const id = container.id;
+  const holds = await cancelOpenHolds(db, id);
   // Children before parents: bookings point at quotes, recommendations at quotes and quote requests.
   const bookings = await removed("bookings", db.from("bookings").delete({ count: "exact" }).eq("container_id", id));
   const recommendations = await removed("recommendations", db.from("recommendations").delete({ count: "exact" }).eq("container_id", id));
@@ -62,7 +64,7 @@ export async function resetDemoContainer(db: AdminClient = getAdmin()): Promise<
   const events = await removed("events", db.from("events").delete({ count: "exact" }).eq("container_id", id));
   const { data: reset, error } = await db.from("containers").update({ status: "inbound" }).eq("id", id).select("*").single();
   if (error) throw new Error(`could not set ${container.container_number} back to inbound: ${error.message}`);
-  return { container: reset, removed: { bookings, recommendations, quote_requests, quotes, events } };
+  return { container: reset, removed: { holds, bookings, recommendations, quote_requests, quotes, events } };
 }
 
 /** Error text for a script line, including the cause code node's fetch hides ("fetch failed" -> ECONNREFUSED). */

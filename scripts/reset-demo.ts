@@ -1,6 +1,6 @@
 // Puts the scripted demo container (PHGU4829137) back to "inbound" and deletes everything a quote run
 // left on it (quote requests, calls, transcripts, quotes, recommendations, bookings, events), so the
-// next "Get quotes" starts clean. Stripe objects from earlier bookings are not touched.
+// next "Get quotes" starts clean. Open Stripe card holds on its bookings are canceled first.
 //
 //   npm run demo:reset      (reads .env.local, then .env; needs SUPABASE_SERVICE_ROLE_KEY)
 import { config } from "dotenv";
@@ -19,7 +19,7 @@ void runScript(async (r) => {
   const { removed } = reset;
   r.pass(
     "cleared",
-    `${removed.quote_requests} quote requests, ${removed.quotes} quotes, ${removed.recommendations} recommendations, ${removed.bookings} bookings, ${removed.events} events`,
+    `${removed.holds} card holds canceled, ${removed.quote_requests} quote requests, ${removed.quotes} quotes, ${removed.recommendations} recommendations, ${removed.bookings} bookings, ${removed.events} events`,
   );
   r.pass("status", `${reset.container.container_number} is ${reset.container.status}`);
 });

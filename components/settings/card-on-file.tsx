@@ -34,6 +34,7 @@ export function CardOnFile({ customerId, paymentMethodId }: { customerId: string
       <button type="button" className="btn-ghost mt-5" onClick={addCard} disabled={pending}>
         {pending ? "Opening Stripe..." : paymentMethodId ? "Replace card" : "Add a card"}
       </button>
+      <p className="mt-3 text-xs text-muted">Test mode: use card 4242 4242 4242 4242, any future date, any CVC. Other test cards can decline every booking.</p>
       {error && <p className="mt-3 font-mono text-xs text-alarm">{error}</p>}
     </div>
   );

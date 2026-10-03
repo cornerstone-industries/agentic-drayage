@@ -94,6 +94,7 @@ export async function bookQuote(args: { quoteId: string; importerId: string; boo
     .select("*")
     .eq("container_id", container.id)
     .in("payment_status", ["authorized", "captured"])
+    .neq("tender_status", "declined")
     .order("created_at", { ascending: false });
   if (liveErr) throw new Error(`booking lookup failed: ${liveErr.message}`);
   if (live?.length) {
