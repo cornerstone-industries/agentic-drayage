@@ -26,15 +26,17 @@ export async function getProviderName(providerId: string): Promise<string | null
 /** The newest queued call for this provider in a quote run that is still calling, or null. */
 export async function getIncomingCall(providerId: string): Promise<IncomingCall | null> {
   const db = createAdminClient();
-  const { data: call } = await db
+  // calls has no created_at, so the ring window is the quote run's age.
+  const { data: rows, error } = await db
     .from("calls")
-    .select("id, provider:providers(name), quote_request:quote_requests(status, created_at, container:containers(*, importer:importers(name)))")
+    .select("id, provider:providers(name), quote_request:quote_requests!inner(status, created_at, container:containers(*, importer:importers(name)))")
     .eq("provider_id", providerId)
     .eq("status", "queued")
-    .gte("created_at", new Date(Date.now() - RING_WINDOW_MS).toISOString())
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .eq("quote_request.status", "calling")
+    .gte("quote_request.created_at", new Date(Date.now() - RING_WINDOW_MS).toISOString())
+    .limit(5);
+  if (error) throw new Error(`Incoming call lookup failed: ${error.message}`);
+  const call = (rows ?? []).sort((a, b) => (b.quote_request?.created_at ?? "").localeCompare(a.quote_request?.created_at ?? ""))[0];
   const container = call?.quote_request?.container;
   if (!call || call.quote_request?.status !== "calling" || !container) return null;
   const box = formatContainerNumber(container.container_number);
