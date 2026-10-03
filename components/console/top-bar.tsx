@@ -7,10 +7,11 @@ import { aiMode } from "@/lib/ai";
 
 const NAV = [
   { href: "/dashboard", label: "Inbound" },
+  { href: "/connect", label: "Connect agent" },
   { href: "/settings", label: "Settings" },
 ];
 
-export function TopBar({ importerName, active }: { importerName: string; active?: "/dashboard" | "/settings" }) {
+export function TopBar({ importerName, active }: { importerName: string; active?: "/dashboard" | "/settings" | "/connect" }) {
   const mode = callMode();
   const ai = aiMode();
   return (

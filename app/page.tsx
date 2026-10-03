@@ -76,9 +76,9 @@ export default function Landing() {
             <Link href="/dashboard" className="btn-primary !px-7 !py-3.5 !text-[16px]">
               Try the demo
             </Link>
-            <a href="#agents" className="btn-ghost !px-6 !py-3.5 !text-[16px]">
+            <Link href="/connect" className="btn-ghost !px-6 !py-3.5 !text-[16px]">
               Connect your agent
-            </a>
+            </Link>
           </div>
 
           <div className="mx-auto mt-16 max-w-[1080px] rounded-[28px] border border-rule bg-sheet/70 p-5 text-left shadow-[0_40px_90px_-60px_rgba(18,20,23,0.6)] sm:p-8">
@@ -142,6 +142,9 @@ book_quote({ quote_id })
 get_container_status({ container_id })`}
             </pre>
             <p className="mt-3 text-[14px] text-muted">Over the importer&apos;s limit, book_quote answers &ldquo;needs human approval&rdquo; and a person decides.</p>
+            <Link href="/connect" className="btn-primary mt-6">
+              Connect your agent
+            </Link>
             <p className="mt-4 rounded-[18px] border border-rule bg-sheet p-5 text-[16px] leading-relaxed text-fg">
               &ldquo;Container PHGU4829137 lands in Charleston in 2 days. Get it to our Atlanta DC by Friday, cheapest reliable option, book it if
               it&apos;s under our limit.&rdquo;

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 
 export function AgentAccess({ endpoint, apiKey }: { endpoint: string; apiKey: string }) {
@@ -14,6 +15,9 @@ export function AgentAccess({ endpoint, apiKey }: { endpoint: string; apiKey: st
   const config = JSON.stringify({ mcpServers: { portcall: { url: endpoint, headers: { Authorization: `Bearer ${show ? apiKey : "<key>"}` } } } }, null, 2);
   return (
     <div className="panel space-y-5 p-6">
+      <Link href="/connect" className="inline-flex text-[14px] font-semibold text-stamp hover:underline">
+        Set it up in Claude, Cursor or VS Code, and test the connection
+      </Link>
       <div>
         <div className="tick-label">MCP endpoint (Streamable HTTP)</div>
         <div className="mt-1.5 flex items-center gap-3">
