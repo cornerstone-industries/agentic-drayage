@@ -177,9 +177,9 @@ export function CallCard({ channel, provider, call, lines, quote, lastFreeDay, r
               <span className="tabular-nums">{clock}</span>
             </div>
           </div>
-          <h3 className="mt-3 font-cond text-[26px] font-bold leading-[1.05] tracking-[-0.01em] text-fg">{provider.name}</h3>
+          <h3 className="mt-3 font-cond text-[22px] font-bold leading-[1.05] tracking-[-0.01em] text-fg xl:text-[26px]">{provider.name}</h3>
           <p className="mt-1 text-[13px] text-muted">
-            {provider.contact_name ?? "Dispatch"}, {provider.phone}
+            {provider.contact_name ?? "Dispatch"}, number ending {provider.phone.slice(-4)}
           </p>
         </div>
 

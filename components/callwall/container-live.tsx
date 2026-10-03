@@ -158,6 +158,19 @@ export function ContainerLive({
     scrolledFor.current = activeQr.id;
     wallRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [calling, activeQr]);
+
+  // When the ranking lands, make sure the decision is on screen (it sits above the calls).
+  const revealRef = useRef<HTMLElement>(null);
+  const revealedFor = useRef<string | null>(recommendation?.id ?? null);
+  useEffect(() => {
+    if (!recommendation || revealedFor.current === recommendation.id) return;
+    revealedFor.current = recommendation.id;
+    const t = setTimeout(() => {
+      const top = revealRef.current?.getBoundingClientRect().top;
+      if (top != null && (top < 0 || top > window.innerHeight * 0.6)) revealRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 300);
+    return () => clearTimeout(t);
+  }, [recommendation]);
   const canQuote = !CLOSED.has(c.status ?? "") && !calling;
   const city = cityFromAddress(c.destination_address);
   const state2 = stateFromAddress(c.destination_address);
@@ -182,8 +195,8 @@ export function ContainerLive({
         : "PortCall phones your own carriers at the same time and writes down every quote as they talk.";
 
   return (
-    <div className="grid gap-10 xl:grid-cols-[minmax(0,1fr)_320px]">
-      <div className="min-w-0">
+    <div className="min-w-0">
+      <div>
         {/* The box: its door, its dates, its clock */}
         <section>
           <div className="mb-4 flex flex-wrap items-center gap-3 text-[13px] text-muted">
@@ -250,9 +263,69 @@ export function ContainerLive({
             </p>
           )}
 
+            {/* The decision first: Claude's call and the booking. The calls below are the evidence. */}
+          <AnimatePresence>
+            {recommendation && (
+              <motion.section
+                key={recommendation.id}
+                initial={{ opacity: 0, y: 24 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ type: "spring", stiffness: 160, damping: 22 }}
+                ref={revealRef}
+                className="mt-8 grid scroll-mt-20 gap-6 lg:grid-cols-[minmax(0,1fr)_360px]"
+                data-testid="ranking-reveal"
+              >
+                <div className="relative overflow-hidden rounded-[18px] border border-[#E8D98A] bg-[#FFF8CF] shadow-[0_18px_40px_-28px_rgba(120,90,0,0.6)]">
+                  <div className="absolute inset-y-0 left-[54px] w-[1.5px] bg-red/50" aria-hidden />
+                  <div className="absolute inset-y-0 left-[58px] w-[1.5px] bg-red/30" aria-hidden />
+                  <div className="py-6 pl-[78px] pr-7">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <h3 className="font-cond text-[15px] font-bold text-fg">{recEngine === "fixture" ? "Fixture ranking" : "Claude's call"}</h3>
+                      {recEngine === "fixture" && <span className="rounded-full border border-red/40 px-2 text-[11.5px] font-semibold text-red">dev only, not Claude</span>}
+                    </div>
+                    <div className="mt-2 min-h-[224px] bg-[repeating-linear-gradient(180deg,transparent_0_31px,rgba(36,83,214,0.18)_31px_32px)]">
+                      <Typewriter text={recommendation.reasoning ?? ""} />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="panel relative overflow-hidden p-6">
+                  {booking ? (
+                    <BookingStatus booking={booking} providerName={providerMap.get(booking.provider_id ?? "")?.name ?? "Carrier"} containerStatus={c.status} />
+                  ) : winnerQuote ? (
+                    <>
+                      <div className="text-[13px] text-muted">Recommended</div>
+                      <div className="mt-1 font-cond text-[26px] font-bold leading-tight text-fg">{providerMap.get(winnerQuote.provider_id ?? "")?.name}</div>
+                      <div className="mt-1 font-mono text-[30px] font-semibold text-fg">{formatUsd(winnerQuote.all_in_cents)}</div>
+                      <button type="button" className="btn-primary mt-5 w-full" disabled={booking_} onClick={() => book(winnerQuote.id)} data-testid="book">
+                        {booking_ ? "Authorizing card..." : `Book for ${formatUsd(winnerQuote.all_in_cents)}`}
+                      </button>
+                      <p className="mt-3 text-[13px] leading-relaxed text-muted">Holds your card now. The carrier gets paid through Stripe when they mark it delivered.</p>
+                      {autoNote && (
+                        <p className={`mt-3 text-[13px] ${autoNote.type === "auto_book_failed" ? "text-red" : "text-muted"}`}>
+                          {autoNote.type === "auto_book_failed"
+                            ? `Auto-book failed: ${(autoNote.payload as { error?: string }).error}`
+                            : `Auto-book held: ${(autoNote.payload as { reason?: string }).reason}`}
+                        </p>
+                      )}
+                      {!autoNote && autoBook.enabled && <p className="mt-3 text-[13px] text-muted">Auto-book is on under {formatUsd(autoBook.limitCents)}.</p>}
+                      {bookError && <p className="mt-3 rounded-[12px] border border-red/30 bg-red/5 px-3 py-2 text-[13px] text-red">{bookError}</p>}
+                    </>
+                  ) : null}
+                </div>
+              </motion.section>
+            )}
+          </AnimatePresence>
+
+          {!recommendation && booking && (
+            <section className="panel relative mt-8 overflow-hidden p-6">
+              <BookingStatus booking={booking} providerName={providerMap.get(booking.provider_id ?? "")?.name ?? "Carrier"} containerStatus={c.status} />
+            </section>
+          )}
+
           <div className="relative mt-8">
             <LayoutGroup>
-              <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+              <div className="grid gap-5 md:grid-cols-3 xl:gap-6">
                 {slots.map((s, i) => {
                   const q = s.call ? quoteByCall.get(s.call.id) : undefined;
                   const rank = recommendation && q ? (recommendation.ranked_quote_ids ?? []).indexOf(q.id) + 1 || undefined : undefined;
@@ -295,82 +368,21 @@ export function ContainerLive({
           )}
         </section>
 
-        {/* Ranking reveal: Claude's call on a legal pad, then the booking */}
-        <AnimatePresence>
-          {recommendation && (
-            <motion.section
-              key={recommendation.id}
-              initial={{ opacity: 0, y: 24 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ type: "spring", stiffness: 160, damping: 22 }}
-              className="mt-12 grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]"
-              data-testid="ranking-reveal"
-            >
-              <div className="relative overflow-hidden rounded-[18px] border border-[#E8D98A] bg-[#FFF8CF] shadow-[0_18px_40px_-28px_rgba(120,90,0,0.6)]">
-                <div className="absolute inset-y-0 left-[54px] w-[1.5px] bg-red/50" aria-hidden />
-                <div className="absolute inset-y-0 left-[58px] w-[1.5px] bg-red/30" aria-hidden />
-                <div className="py-6 pl-[78px] pr-7">
-                  <div className="flex flex-wrap items-center gap-3">
-                    <h3 className="font-cond text-[15px] font-bold text-fg">{recEngine === "fixture" ? "Fixture ranking" : "Claude's call"}</h3>
-                    {recEngine === "fixture" && <span className="rounded-full border border-red/40 px-2 text-[11.5px] font-semibold text-red">dev only, not Claude</span>}
-                  </div>
-                  <div className="mt-2 min-h-[224px] bg-[repeating-linear-gradient(180deg,transparent_0_31px,rgba(36,83,214,0.18)_31px_32px)]">
-                    <Typewriter text={recommendation.reasoning ?? ""} />
-                  </div>
-                </div>
-              </div>
-
-              <div className="panel relative overflow-hidden p-6">
-                {booking ? (
-                  <BookingStatus booking={booking} providerName={providerMap.get(booking.provider_id ?? "")?.name ?? "Carrier"} containerStatus={c.status} />
-                ) : winnerQuote ? (
-                  <>
-                    <div className="text-[13px] text-muted">Recommended</div>
-                    <div className="mt-1 font-cond text-[26px] font-bold leading-tight text-fg">{providerMap.get(winnerQuote.provider_id ?? "")?.name}</div>
-                    <div className="mt-1 font-mono text-[30px] font-semibold text-fg">{formatUsd(winnerQuote.all_in_cents)}</div>
-                    <button type="button" className="btn-primary mt-5 w-full" disabled={booking_} onClick={() => book(winnerQuote.id)} data-testid="book">
-                      {booking_ ? "Authorizing card..." : `Book for ${formatUsd(winnerQuote.all_in_cents)}`}
-                    </button>
-                    <p className="mt-3 text-[13px] leading-relaxed text-muted">Holds your card now. The carrier gets paid through Stripe when they mark it delivered.</p>
-                    {autoNote && (
-                      <p className={`mt-3 text-[13px] ${autoNote.type === "auto_book_failed" ? "text-red" : "text-muted"}`}>
-                        {autoNote.type === "auto_book_failed"
-                          ? `Auto-book failed: ${(autoNote.payload as { error?: string }).error}`
-                          : `Auto-book held: ${(autoNote.payload as { reason?: string }).reason}`}
-                      </p>
-                    )}
-                    {!autoNote && autoBook.enabled && <p className="mt-3 text-[13px] text-muted">Auto-book is on under {formatUsd(autoBook.limitCents)}.</p>}
-                    {bookError && <p className="mt-3 rounded-[12px] border border-red/30 bg-red/5 px-3 py-2 text-[13px] text-red">{bookError}</p>}
-                  </>
-                ) : null}
-              </div>
-            </motion.section>
-          )}
-        </AnimatePresence>
-
-        {!recommendation && booking && (
-          <section className="panel relative mt-12 overflow-hidden p-6">
-            <BookingStatus booking={booking} providerName={providerMap.get(booking.provider_id ?? "")?.name ?? "Carrier"} containerStatus={c.status} />
-          </section>
-        )}
-
         {aiEngine === "unconfigured" && <p className="mt-6 text-[13px] text-red">Claude is not configured: set AI_GATEWAY_API_KEY to extract quotes and rank them.</p>}
       </div>
 
-      {/* The log: a receipt tape of every event */}
-      <aside className="xl:sticky xl:top-20 xl:h-[calc(100dvh-6rem)]">
-        <div className="flex h-full max-h-[70vh] flex-col overflow-hidden rounded-t-[14px] border border-b-0 border-rule bg-sheet shadow-[0_14px_40px_-30px_rgba(18,20,23,0.5)] xl:max-h-none">
-          <div className="flex items-center justify-between border-b border-dashed border-rule px-4 py-3">
-            <h2 className="font-cond text-[15px] font-bold text-fg">Log</h2>
-            <span className="text-[12px] text-muted">streamed from Supabase</span>
+      {/* The log: every step, as Realtime delivers it */}
+      <section className="mt-12" aria-label="Log">
+        <div className="overflow-hidden rounded-[16px] border border-rule bg-sheet">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-rule px-5 py-3">
+            <h2 className="font-cond text-[17px] font-bold text-fg">Log</h2>
+            <span className="text-[12.5px] text-muted">Every step, streamed from Supabase as it happens</span>
           </div>
-          <div ref={timelineBox} className="flex-1 overflow-y-auto px-4 py-2 [scrollbar-width:thin]">
+          <div ref={timelineBox} className="max-h-[360px] overflow-y-auto px-5 py-2 [scrollbar-width:thin]">
             {events.length ? <Timeline events={events} providers={providerMap} /> : <p className="py-2 text-[13px] text-dim">Nothing yet. Call carriers to start the clock.</p>}
           </div>
-          {/* torn receipt edge */}
-          <div className="h-3 bg-[linear-gradient(135deg,rgb(var(--sheet-rgb))_50%,transparent_50%),linear-gradient(225deg,rgb(var(--sheet-rgb))_50%,transparent_50%)] bg-[size:12px_12px] bg-repeat-x" aria-hidden />
         </div>
-      </aside>
+      </section>
     </div>
   );
 }
