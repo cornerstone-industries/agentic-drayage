@@ -63,6 +63,9 @@ export function ContainerLive({
         .map((id) => state.quotes.find((q) => q.id === id))
         .find((q) => q && q.all_in_cents != null && !declinedBy.includes(q.provider_id))
     : undefined;
+  const rankedQuotes = (recommendation?.ranked_quote_ids ?? [])
+    .map((id) => state.quotes.find((q) => q.id === id))
+    .filter((q): q is Quote => Boolean(q && q.all_in_cents != null));
   const lastDeclined = declinedBy.length ? providerMap.get(declinedBy[declinedBy.length - 1] ?? "")?.name : undefined;
   const recEvent = [...events].reverse().find((e) => e.type === "recommended");
   const recEngine = ((recEvent?.payload ?? {}) as { engine?: string }).engine;
@@ -300,13 +303,36 @@ export function ContainerLive({
                 <div className="relative overflow-hidden rounded-[18px] border border-[#E8D98A] bg-[#FFF8CF] shadow-[0_18px_40px_-28px_rgba(120,90,0,0.6)]">
                   <div className="absolute inset-y-0 left-[54px] w-[1.5px] bg-red/50" aria-hidden />
                   <div className="absolute inset-y-0 left-[58px] w-[1.5px] bg-red/30" aria-hidden />
-                  <div className="py-6 pl-[78px] pr-7">
+                  <div className="flex h-full flex-col py-6 pl-[78px] pr-7">
                     <div className="flex flex-wrap items-center gap-3">
                       <h3 className="font-cond text-[15px] font-bold text-fg">{recEngine === "fixture" ? "Fixture ranking" : "Claude's call"}</h3>
                       {recEngine === "fixture" && <span className="rounded-full border border-red/40 px-2 text-[11.5px] font-semibold text-red">dev only, not Claude</span>}
                     </div>
-                    <div className="mt-2 min-h-[224px] bg-[repeating-linear-gradient(180deg,transparent_0_31px,rgba(36,83,214,0.18)_31px_32px)]">
+                    <div className="mt-2 min-h-[160px] flex-1 bg-[repeating-linear-gradient(180deg,transparent_0_31px,rgba(36,83,214,0.18)_31px_32px)]">
                       <Typewriter text={recommendation.reasoning ?? ""} />
+                      {/* The math under the words: all-in + demurrage = what it really costs, one ruled line per carrier */}
+                      {rankedQuotes.length > 0 && (
+                        <motion.ol
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          transition={{ delay: Math.min(((recommendation.reasoning ?? "").length * 14) / 1000, 6), duration: 0.4 }}
+                          className="mt-[32px] font-mono text-[14.5px] leading-[32px] text-fg"
+                        >
+                          {rankedQuotes.map((q, i) => (
+                            <li key={q.id} className="flex items-baseline gap-3">
+                              <span className="w-5 shrink-0 text-muted">{i + 1}.</span>
+                              <span className={`min-w-0 truncate font-sans font-semibold ${i === 0 ? "marker" : ""}`} data-on={i === 0}>
+                                {providerMap.get(q.provider_id ?? "")?.name ?? "Carrier"}
+                              </span>
+                              <span className="ml-auto hidden shrink-0 whitespace-nowrap text-muted sm:inline">
+                                {formatUsd(q.all_in_cents)}
+                                <span className={(q.projected_demurrage_cents ?? 0) > 0 ? "text-red" : ""}> + {formatUsd(q.projected_demurrage_cents ?? 0)}</span> =
+                              </span>
+                              <span className={`ml-auto w-[92px] shrink-0 text-right sm:ml-0 font-semibold ${i === 0 ? "text-live" : "text-fg"}`}>{formatUsd(q.risk_adjusted_cents)}</span>
+                            </li>
+                          ))}
+                        </motion.ol>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -441,12 +467,12 @@ function BookingStatus({
         {booking.booked_by === "agent" ? "Booked by your agent" : booking.booked_by === "auto" ? "Auto-booked under your limit" : "Booked by you"}
       </div>
       <div className="mt-1 font-cond text-[26px] font-bold leading-tight text-fg">{providerName}</div>
-      <div className="mt-1 font-mono text-[30px] font-semibold text-fg">{formatUsd(booking.amount_cents)}</div>
-      <div className="text-[12.5px] text-muted">
-        {formatUsd(booking.amount_cents - booking.platform_fee_cents)} {booking.payment_status === "captured" ? "paid" : "on delivery"} to {providerName} · {formatUsd(booking.platform_fee_cents)} platform fee
-      </div>
-      <div className="absolute right-5 top-[92px]">
+      <div className="mt-1 flex items-center justify-between gap-3">
+        <div className="font-mono text-[30px] font-semibold text-fg">{formatUsd(booking.amount_cents)}</div>
         <PaymentStamp status={booking.payment_status} />
+      </div>
+      <div className="mt-1 text-[12.5px] text-muted">
+        {formatUsd(booking.amount_cents - booking.platform_fee_cents)} {booking.payment_status === "captured" ? "paid" : "on delivery"} to {providerName} · {formatUsd(booking.platform_fee_cents)} platform fee
       </div>
       <ol className="mt-5 space-y-2.5">
         {STEPS.map((s) => {
