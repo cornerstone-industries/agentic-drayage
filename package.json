@@ -30,6 +30,7 @@
     "@radix-ui/react-slot": "^1.2.2",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.117.2",
+    "@vapi-ai/web": "^2.7.1",
     "ai": "^7.0.127",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

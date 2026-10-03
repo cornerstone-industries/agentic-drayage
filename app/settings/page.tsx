@@ -64,7 +64,11 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
             <h2 className="font-cond text-[20px] font-bold text-fg">Drayage providers</h2>
             <p className="mt-2 text-sm text-muted">
               Your own carriers. PortCall only calls the ones that serve the lane, and pays them through Stripe Connect.
-              {callMode() === "live" ? " Calls go to these numbers." : " Replay mode is on, so no phones ring."}
+              {callMode() === "live"
+                ? " Calls go to these numbers."
+                : callMode() === "web"
+                  ? " Web call mode is on: each carrier keeps their phone page open (/phone/<provider id>) and answers there."
+                  : " Replay mode is on, so no phones ring."}
             </p>
           </div>
           <ProvidersTable providers={providers ?? []} />

@@ -31,10 +31,12 @@ function intEnv(name: string, fallback: number): number {
   return Number.isFinite(n) ? n : fallback;
 }
 
-export type CallMode = "live" | "replay";
+/** live = Vapi dials real phones; web = carriers answer a Vapi web call on /phone/[providerId]; replay = recorded scripts. */
+export type CallMode = "live" | "replay" | "web";
 
 export function callMode(): CallMode {
-  return process.env.CALL_MODE?.trim() === "replay" ? "replay" : "live";
+  const mode = process.env.CALL_MODE?.trim();
+  return mode === "replay" || mode === "web" ? mode : "live";
 }
 
 /** Estimated demurrage per day past the last free day. Shown as "estimated" in the UI. */

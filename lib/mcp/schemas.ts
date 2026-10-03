@@ -150,7 +150,7 @@ export const listContainersOutput = z.object({
 export const requestQuotesInput = z.object({ container_id: containerRef });
 export const requestQuotesOutput = z.object({
   quote_request_id: z.string(),
-  mode: z.enum(["live", "replay"]).describe("replay means recorded dispatcher scripts, not live phone calls."),
+  mode: z.enum(["live", "replay", "web"]).describe("replay means recorded dispatcher scripts, not live phone calls; web means carriers answer a browser voice call instead of a phone call."),
   reused: z.boolean().describe("True when a quote request was already in flight and no new calls were placed."),
   container: containerViewSchema,
   calls: z.array(z.object({ call_id: z.string(), provider_id: z.string(), provider_name: z.string(), status: z.string() })),

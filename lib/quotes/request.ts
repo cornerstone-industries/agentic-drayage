@@ -2,7 +2,7 @@
 // calls (CALL_MODE=live) or the fixture replay through the real webhook (CALL_MODE=replay).
 // Shared by the Get quotes button, the auto trigger (pg_cron) and the MCP request_quotes tool.
 import { createAdminClient } from "@/lib/supabase/admin";
-import { callMode, type CallMode } from "@/lib/env";
+import { callMode, requireEnv, type CallMode } from "@/lib/env";
 import { logEvent } from "@/lib/events";
 import { formatContainerNumber, stateFromAddress } from "@/lib/money";
 import { cityFromAddress, longDate, portDate, spokenSize, stateName } from "@/lib/dates";
@@ -47,6 +47,8 @@ export async function startQuoteRequest(args: {
   if (mode === "live") {
     const { assertVapiConfigured } = await import("@/lib/vapi/client");
     assertVapiConfigured();
+  } else if (mode === "web") {
+    requireEnv("Vapi web calls", ["VAPI_ASSISTANT_ID", "NEXT_PUBLIC_VAPI_PUBLIC_KEY"]);
   }
 
   const { data: container } = await db
@@ -126,20 +128,16 @@ export async function startQuoteRequest(args: {
       const { runReplay } = await import("@/lib/replay/run");
       await runReplay(qr.id);
     });
+  } else if (mode === "web") {
+    // Nothing is dialed: each carrier's /phone/[providerId] page polls for its queued call and starts a
+    // Vapi web call carrying our calls.id in metadata, so the webhook maps it exactly like a phone call.
+    runInBackground("web-timeout", async () => {
+      await sleep(LIVE_TIMEOUT_MS);
+      await finalizeQuoteRequest(qr.id, { force: true });
+    });
   } else {
     const { createVapiCall } = await import("@/lib/vapi/client");
-    const eta = container.eta ? portDate(container.eta) : null;
-    const city = cityFromAddress(container.destination_address);
-    const variables = {
-      importerName: container.importer?.name ?? "our client",
-      size: spokenSize(container.size),
-      containerNumber: box,
-      terminal: container.terminal ?? "the terminal",
-      eta: eta ? longDate(eta) : "this week",
-      lastFreeDay: container.last_free_day ? longDate(container.last_free_day) : "unknown",
-      destination: city ? `our DC in ${city}, ${stateName(destState)}` : (container.destination_name ?? "our DC"),
-      deliverBy: container.deliver_by ? longDate(container.deliver_by) : "as soon as possible",
-    };
+    const variables = callVariables(container, box, destState);
     await Promise.all(
       calls.map(async (c) => {
         try {
@@ -175,5 +173,34 @@ export async function startQuoteRequest(args: {
     reused: false,
     calls: calls.map(({ callId, providerId, providerName, status }) => ({ callId, providerId, providerName, status })),
     skipped,
+  };
+}
+
+/** The assistant's {{template}} values for one container (providerName is added per call). */
+export function callVariables(
+  container: {
+    importer?: { name: string | null } | null;
+    size: string | null;
+    terminal: string | null;
+    eta: string | null;
+    last_free_day: string | null;
+    destination_address: string | null;
+    destination_name: string | null;
+    deliver_by: string | null;
+  },
+  box: string,
+  destState: string | null,
+): Record<string, string> {
+  const eta = container.eta ? portDate(container.eta) : null;
+  const city = cityFromAddress(container.destination_address);
+  return {
+    importerName: container.importer?.name ?? "our client",
+    size: spokenSize(container.size),
+    containerNumber: box,
+    terminal: container.terminal ?? "the terminal",
+    eta: eta ? longDate(eta) : "this week",
+    lastFreeDay: container.last_free_day ? longDate(container.last_free_day) : "unknown",
+    destination: city ? `our DC in ${city}, ${stateName(destState)}` : (container.destination_name ?? "our DC"),
+    deliverBy: container.deliver_by ? longDate(container.deliver_by) : "as soon as possible",
   };
 }

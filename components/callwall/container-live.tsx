@@ -35,7 +35,7 @@ export function ContainerLive({
   providers: Provider[];
   eligibleIds: string[];
   skipped: { providerId: string; providerName: string; reason: string }[];
-  mode: "live" | "replay";
+  mode: "live" | "replay" | "web";
   aiEngine: "claude" | "fixture" | "unconfigured";
   demurragePerDayCents: number;
   autoBook: { enabled: boolean; limitCents: number };

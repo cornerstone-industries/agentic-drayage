@@ -28,7 +28,7 @@ const EXPECTED_CALLS = 3;
 const Started = z
   .object({
     quoteRequestId: z.string().min(1),
-    mode: z.enum(["live", "replay"]),
+    mode: z.enum(["live", "replay", "web"]),
     reused: z.boolean(),
     calls: z.array(z.object({ providerName: z.string() }).passthrough()),
   })
