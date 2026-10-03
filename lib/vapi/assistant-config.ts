@@ -49,8 +49,8 @@ export function buildAssistantConfig({ webhookUrl, webhookSecret }: AssistantCon
       messages: [{ role: "system", content: SYSTEM_PROMPT }],
       tools: [{ type: "endCall" }],
     },
-    // Cartesia Sonic is the lowest-latency voice in Vapi; "Esther", a gentle Southern American voice.
-    voice: { provider: "cartesia", model: "sonic-3", voiceId: "1a0c6bb2-bc1b-476e-8d45-56a66300362b" },
+    // Cartesia Sonic is the lowest-latency voice in Vapi; "Iris", a warm conversational American voice.
+    voice: { provider: "cartesia", model: "sonic-3", voiceId: "c894559e-d529-4d70-a6fb-3330ecf7ef6b" },
     transcriber: { provider: "deepgram", model: "nova-3", language: "en" },
     // Turn latency on the first live call averaged 3.3s, mostly waiting to decide the dispatcher had
     // finished. These cut the default 1.5s no-punctuation wait while giving spoken numbers a beat.
