@@ -4,7 +4,7 @@
 import { generateText, Output, type LanguageModel } from "ai";
 import { z } from "zod";
 import { NotConfiguredError, aiGatewayConfigured } from "@/lib/env";
-import { addDays, portDate, weekday } from "@/lib/dates";
+import { addDays, portDate, shortDate, weekday } from "@/lib/dates";
 import { daysBetween, formatContainerNumber, formatUsd, type Accessorial } from "@/lib/money";
 import type {
   ExtractedQuote,
@@ -273,7 +273,7 @@ const recommendationSchema = z.object({
   reasoning: z.string().describe("2 to 3 plain sentences explaining the pick, with dollar amounts."),
 });
 
-const RECOMMEND_INSTRUCTIONS = `You rank drayage quotes for an importer and explain the pick to a busy logistics coordinator.
+const RECOMMEND_INSTRUCTIONS = `You rank drayage quotes for an importer and explain the pick to a busy logistics coordinator. Write dates the way they appear in the input, like Tue 10/6, never as YYYY-MM-DD.
 
 The goal is the best reliable option, not the cheapest sticker price. Rank on risk-adjusted cost (all-in rate plus projected demurrage), lowest first.
 
@@ -308,7 +308,7 @@ export function buildRecommendationPrompt(quotes: RankableQuote[], ctx: Recommen
     return [
       `${label(i)} ${q.provider_name}`,
       `  all-in: ${formatUsd(q.all_in_cents)} (linehaul ${q.linehaul_cents == null ? "not given" : formatUsd(q.linehaul_cents)}, fuel ${q.fuel_surcharge_cents == null ? "not given" : formatUsd(q.fuel_surcharge_cents)}, chassis ${chassis}, other fees ${fees})`,
-      `  earliest pickup: ${q.earliest_pickup ?? "not given"}${lateDays == null ? "" : ` (${lateDays} day${lateDays === 1 ? "" : "s"} after the last free day)`}`,
+      `  earliest pickup: ${q.earliest_pickup ? shortDate(q.earliest_pickup) : "not given"}${lateDays == null ? "" : ` (${lateDays} day${lateDays === 1 ? "" : "s"} after the last free day)`}`,
       `  projected demurrage: ${formatUsd(q.projected_demurrage_cents)}; risk-adjusted cost: ${formatUsd(q.risk_adjusted_cents)}`,
       `  can deliver by the deliver-by date: ${meets}`,
       `  all-in vs cheapest all-in: ${allInGap === 0 ? "this is the cheapest all-in" : `${formatUsd(allInGap)} more`}; risk-adjusted vs lowest risk-adjusted: ${riskGap === 0 ? "this is the lowest" : `${formatUsd(riskGap)} more`}`,
@@ -316,7 +316,7 @@ export function buildRecommendationPrompt(quotes: RankableQuote[], ctx: Recommen
     ].join("\n");
   };
   return `Today is ${ctx.today}.
-Container ${formatContainerNumber(c.container_number)}${c.terminal ? ` at ${c.terminal}` : ""}. Last free day: ${c.last_free_day ?? "unknown"}. Deliver-by date: ${c.deliver_by ?? "unknown"}. Destination: ${c.destination_name ?? "unknown"}.
+Container ${formatContainerNumber(c.container_number)}${c.terminal ? ` at ${c.terminal}` : ""}. Last free day: ${c.last_free_day ? shortDate(c.last_free_day) : "unknown"}. Deliver-by date: ${c.deliver_by ? shortDate(c.deliver_by) : "unknown"}. Destination: ${c.destination_name ?? "unknown"}.
 Estimated demurrage: ${formatUsd(ctx.demurragePerDayCents)} for each day the pickup lands after the last free day.
 
 Quotes:
