@@ -42,7 +42,8 @@ async function main() {
     console.log(`\n${call.id.slice(0, 8)}  ${call.type ?? ""}  ${call.status ?? ""}  ${call.endedReason ?? ""}  length ${Number.isFinite(lengthS) ? `${lengthS.toFixed(0)}s` : "n/a"}`);
 
     // 1) Measured from the transcript: dispatcher stops talking -> PortCall starts talking.
-    const msgs = (call.artifact?.messages ?? call.messages ?? []).filter((m) => m.role === "user" || m.role === "bot" || m.role === "assistant");
+    const raw = call.artifact?.messages ?? call.messages;
+    const msgs = (Array.isArray(raw) ? raw : []).filter((m) => m.role === "user" || m.role === "bot" || m.role === "assistant");
     const gaps: number[] = [];
     for (let i = 1; i < msgs.length; i++) {
       const prev = msgs[i - 1];
