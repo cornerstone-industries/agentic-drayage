@@ -1,7 +1,7 @@
 // Pushes the deploy-time environment from .env.local to the linked Vercel project (production), so keys
 // are typed once. Prints only names and value lengths, never values.
 //
-//   npm run vercel:env -- --app-url https://portcall.vercel.app
+//   npm run vercel:env -- --app-url https://portcall.vercel.app [--only NAME1,NAME2]
 //
 // APP_URL is taken from --app-url (the production URL), not from .env.local (which points at localhost).
 // DEV_ONLY_FIXTURE_AI is always pushed as false: production never uses the fixture AI.
@@ -47,9 +47,15 @@ for (const n of NAMES) if (env[n]?.trim()) values[n] = env[n].trim();
 values.APP_URL = appUrlArg.replace(/\/+$/, "");
 values.DEV_ONLY_FIXTURE_AI = "false";
 
+// Public and plain config values stay readable; everything else is stored as a Vercel secret.
+const CONFIG = new Set(["APP_URL", "CALL_MODE", "DEV_ONLY_FIXTURE_AI", "DEMURRAGE_PER_DAY_CENTS", "PLATFORM_FEE_BPS", "REPLAY_SPEED", "AI_EXTRACT_MODEL", "AI_RECOMMEND_MODEL", "TENDER_FROM_EMAIL", "TENDER_EMAIL_OVERRIDE_TO"]);
+const only = args.includes("--only") ? args[args.indexOf("--only") + 1]?.split(",") : null;
+
 let failed = 0;
 for (const [name, value] of Object.entries(values)) {
-  const r = spawnSync("vercel", ["env", "add", name, "production", "--force", "--yes"], { input: value, encoding: "utf8" });
+  if (only && !only.includes(name)) continue;
+  const kind = name.startsWith("NEXT_PUBLIC_") || CONFIG.has(name) ? "--no-sensitive" : "--sensitive";
+  const r = spawnSync("vercel", ["env", "add", name, "production", "--force", "--yes", kind], { input: value, encoding: "utf8" });
   if (r.status === 0) console.log(`PASS ${name} (${value.length} chars)`);
   else {
     failed++;
