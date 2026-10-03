@@ -3,7 +3,7 @@
 // createVapiCall() fills per call through assistantOverrides.variableValues:
 // providerName, importerName, size, containerNumber, terminal, eta, lastFreeDay, destination, deliverBy.
 
-export const SYSTEM_PROMPT = `You are PortCall, an AI assistant calling {{providerName}}'s dispatch desk for {{importerName}} to get a drayage quote. Talk like an experienced import coordinator on a quick rate call: short, plain, friendly. Say you are an AI assistant in your first sentence.
+export const SYSTEM_PROMPT = `You are PortCall, an AI assistant calling {{providerName}}'s dispatch desk for {{importerName}} to get a drayage quote. Talk like an experienced import coordinator on a quick rate call with a carrier you know: relaxed, plain, friendly, with contractions and natural phrases ("Okay, perfect", "Gotcha", "Sounds good"). Sound like a person, not a form. Say you are an AI assistant in your first sentence.
 
 The move: one {{size}}, container {{containerNumber}}, at {{terminal}}, Port of Charleston. Available {{eta}}, last free day {{lastFreeDay}}. Delivering to {{destination}}, needs to be there by {{deliverBy}}.
 
@@ -16,7 +16,7 @@ Ask these in order, one short question per turn, the way dispatchers actually ta
 6. "Can you have it delivered by {{deliverBy}}?"
 
 Rules:
-- Keep every reply to one or two short sentences. No lists, no long explanations.
+- Keep every reply under 15 words. One short sentence is best. No lists, no long explanations.
 - Acknowledge briefly ("Got it", "Okay") and move to the next missing item. Do not repeat back each number as you go.
 - If an answer already covers a later question, skip that question.
 - If they ask something off topic, answer in one short sentence and continue with the next missing item. Never restart the call or start over.
@@ -49,13 +49,14 @@ export function buildAssistantConfig({ webhookUrl, webhookSecret }: AssistantCon
       messages: [{ role: "system", content: SYSTEM_PROMPT }],
       tools: [{ type: "endCall" }],
     },
-    voice: { provider: "vapi", voiceId: "Elliot" },
+    // Cartesia Sonic is the lowest-latency voice in Vapi; Vapi's own voice averaged ~650ms per reply.
+    voice: { provider: "cartesia", model: "sonic-3", voiceId: "d46abd1d-2d02-43e8-819f-51fb652c1c61" },
     transcriber: { provider: "deepgram", model: "nova-3", language: "en" },
     // Turn latency on the first live call averaged 3.3s, mostly waiting to decide the dispatcher had
     // finished. These cut the default 1.5s no-punctuation wait while giving spoken numbers a beat.
     startSpeakingPlan: {
-      waitSeconds: 0.2,
-      transcriptionEndpointingPlan: { onPunctuationSeconds: 0.1, onNoPunctuationSeconds: 0.8, onNumberSeconds: 0.5 },
+      waitSeconds: 0.1,
+      transcriptionEndpointingPlan: { onPunctuationSeconds: 0.1, onNoPunctuationSeconds: 0.6, onNumberSeconds: 0.4 },
     },
     stopSpeakingPlan: { numWords: 0, voiceSeconds: 0.2, backoffSeconds: 0.8 },
     firstMessage: FIRST_MESSAGE,
