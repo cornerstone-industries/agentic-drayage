@@ -5,11 +5,11 @@ import { useEffect, useState } from "react";
 import { LayoutGroup, motion } from "motion/react";
 import { createClient } from "@/lib/supabase/client";
 import { authorizeRealtime } from "@/lib/supabase/realtime";
-import { formatContainerNumber, formatUsd } from "@/lib/money";
+import { daysBetween, formatContainerNumber, formatUsd } from "@/lib/money";
 import { cityFromAddress, portDate, shortDate } from "@/lib/dates";
 import { stateFromAddress } from "@/lib/money";
 import { ContainerDoor } from "@/components/freight/container-door";
-import { STATIONS, stageIndex } from "@/components/freight/journey-track";
+import { stageIndex } from "@/components/freight/journey-track";
 import type { Booking, Container } from "@/lib/types";
 
 type BookingLite = Pick<Booking, "id" | "payment_status" | "tender_status" | "amount_cents" | "created_at"> & {
@@ -30,6 +30,15 @@ const STATUS_COPY: Record<string, string> = {
   delivered: "Delivered",
 };
 const CTA: Record<string, string> = { inbound: "Call carriers", quoting: "Watch the calls", quoted: "Review quotes" };
+
+/** The board's progress steps. Accepted gets its own step so it never draws the same bar as booked. */
+const STEPS = ["At sea", "Discharged", "Quoted", "Booked", "Accepted", "Picked up", "Delivered"] as const;
+function stepIndex(status: string | null, eta: string | null): number {
+  if (status === "accepted") return 4;
+  if (status === "picked_up") return 5;
+  if (status === "delivered") return 6;
+  return stageIndex(status, eta); // at sea 0, discharged 1, quoted 2, booked 3
+}
 
 const GROUPS = [
   { key: "needs", label: "Needs a carrier" },
@@ -64,11 +73,12 @@ function useNow() {
   return now;
 }
 
+/** Calendar days in port time, so the words agree with the date printed above them. */
 function arrivesIn(eta: string, now: number) {
-  const days = Math.round((new Date(eta).getTime() - now) / DAY);
+  const days = daysBetween(portDate(new Date(now).toISOString()), portDate(eta));
   if (days > 1) return `in ${days} days`;
   if (days === 1) return "tomorrow";
-  if (days === 0) return "today";
+  if (days === 0) return new Date(eta).getTime() <= now ? "arrived today" : "today";
   if (days === -1) return "arrived yesterday";
   return `arrived ${-days} days ago`;
 }
@@ -208,7 +218,7 @@ function MobileLabel({ children }: { children: React.ReactNode }) {
 function Row({ row, now, demurragePerDayCents }: { row: BoardRow; now: number | null; demurragePerDayCents: number }) {
   const c = row.container;
   const status = c.status ?? "inbound";
-  const idx = stageIndex(c.status, c.eta);
+  const idx = stepIndex(c.status, c.eta);
   const city = cityFromAddress(c.destination_address);
   const state = stateFromAddress(c.destination_address);
   const payment = row.booking?.payment_status;
@@ -245,7 +255,7 @@ function Row({ row, now, demurragePerDayCents }: { row: BoardRow; now: number | 
           <div className="min-w-0">
             <div className={`flex items-center gap-2 font-semibold ${status === "quoting" ? "text-crane" : "text-fg"}`}>
               {status === "quoting" && <span className="h-2 w-2 animate-pulse rounded-full bg-crane" />}
-              {STATUS_COPY[status] ?? STATIONS[idx]}
+              {STATUS_COPY[status] ?? STEPS[idx]}
             </div>
             {row.booking && (
               <div className="mt-0.5 text-[13px] text-muted">
@@ -264,8 +274,8 @@ function Row({ row, now, demurragePerDayCents }: { row: BoardRow; now: number | 
             </span>
           )}
         </div>
-        <div className="mt-2.5 flex gap-1" title={`Step ${idx + 1} of ${STATIONS.length}: ${STATIONS[idx]}`} aria-hidden>
-          {STATIONS.map((s, i) => (
+        <div className="mt-2.5 flex gap-1" title={`Step ${idx + 1} of ${STEPS.length}: ${STEPS[idx]}`} aria-hidden>
+          {STEPS.map((s, i) => (
             <span
               key={s}
               className={`h-1.5 flex-1 rounded-full ${i <= idx ? "bg-fg/75" : status === "quoting" && i === idx + 1 ? "animate-pulse bg-crane" : "bg-rule"}`}
@@ -286,7 +296,7 @@ function Row({ row, now, demurragePerDayCents }: { row: BoardRow; now: number | 
   );
 }
 
-/** Plain words first ("6 days left"), the date second, and a bar only while the clock is running. */
+/** Plain words first ("6 days left"), the date second, then a bar that drains toward the last free day. */
 function FreeTime({ c, now, demurragePerDayCents }: { c: Container; now: number | null; demurragePerDayCents: number }) {
   if (!c.eta || !c.last_free_day) return <div className="text-muted">No last free day</div>;
   const outOfTerminal = c.status === "picked_up" || c.status === "delivered";
@@ -307,18 +317,20 @@ function FreeTime({ c, now, demurragePerDayCents }: { c: Container; now: number 
   const end = lfdEndsAt(c.last_free_day);
   const left = now == null ? null : end - now;
   const overdue = left != null && left <= 0;
+  // Days at sea are not free time: the clock starts when the box is discharged.
+  const atSea = now != null && now < start;
   const fraction = now == null ? 0 : Math.min(1, Math.max(0, (now - start) / Math.max(DAY, end - start)));
   const tone = overdue || (left != null && left < DAY) ? "text-red" : left != null && left < 2 * DAY ? "text-crane" : "text-fg";
   const bar = overdue || fraction > 0.85 ? "bg-red" : fraction > 0.55 ? "bg-crane" : "bg-live";
   const accrued = overdue && now != null ? Math.ceil((now - end) / DAY) * demurragePerDayCents : 0;
   return (
     <>
-      <div className={`min-h-[24px] font-semibold ${tone}`}>{left == null ? "" : overdue ? "Late fees started" : timeLeft(left)}</div>
+      <div className={`min-h-[24px] font-semibold ${tone}`}>{left == null ? "" : overdue ? "Late fees started" : atSea ? `Clock starts ${shortDate(portDate(c.eta))}` : timeLeft(left)}</div>
       <div className="mt-0.5 text-[13px] text-muted">
         {overdue ? `About ${formatUsd(accrued)} so far (est.)` : `Last free day ${shortDate(c.last_free_day)}`}
       </div>
       <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-rule" aria-hidden>
-        <div className={`h-full rounded-full transition-[width] duration-700 ${bar}`} style={{ width: `${Math.max(fraction * 100, 3)}%` }} />
+        <div className={`h-full rounded-full transition-[width] duration-700 ${bar}`} style={{ width: `${Math.max((1 - fraction) * 100, 3)}%` }} />
       </div>
     </>
   );
