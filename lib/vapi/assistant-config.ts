@@ -38,10 +38,10 @@ export type AssistantConfigArgs = {
 export function buildAssistantConfig({ webhookUrl, webhookSecret }: AssistantConfigArgs) {
   return {
     name: "PortCall quote caller",
-    // Claude Haiku: ~480ms per reply on the phone. GPT-4o-mini measured 494ms and looped on "tomorrow", so it went back.
+    // Trying Gemini 2.5 Flash-Lite (~0.32s published TTFT). Claude Haiku measured 0.34-0.44s; GPT-4o-mini 0.49s and looped.
     model: {
-      provider: "anthropic",
-      model: "claude-haiku-4-5-20251001",
+      provider: "google",
+      model: "gemini-2.5-flash-lite",
       temperature: 0.3,
       maxTokens: 120,
       messages: [{ role: "system", content: SYSTEM_PROMPT }],
