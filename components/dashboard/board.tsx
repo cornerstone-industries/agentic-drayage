@@ -157,8 +157,8 @@ export function Board({
         <div className="max-w-2xl">
           <h1 className="font-cond text-[64px] font-extrabold leading-[0.95] tracking-[-0.025em] text-fg sm:text-[76px]">Inbound</h1>
           <p className="mt-4 text-[17px] leading-relaxed text-muted">
-            Every container headed for your warehouses, when it lands, and how long until late fees start. Open one to put three carriers on
-            the phone at once.
+            Every container headed for your warehouses, when it lands, and how long until late fees start. Open one to put every carrier on
+            the lane on the phone at once.
           </p>
         </div>
         <p className="max-w-sm text-[15px] leading-relaxed text-muted xl:text-right">

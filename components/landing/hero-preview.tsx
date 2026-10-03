@@ -19,7 +19,7 @@ const REQUEST = "PHGU 482913-7 lands Monday. Get it to our Atlanta DC by Friday,
 
 const STEPS: { key: Phase; label: string; say: string }[] = [
   { key: "ask", label: "Ask", say: "Your agent asks PortCall for drayage quotes." },
-  { key: "call", label: "Call", say: "PortCall phones 3 carriers at once and writes down every price." },
+  { key: "call", label: "Call", say: "PortCall phones all your carriers at once and writes down every price." },
   { key: "rank", label: "Rank", say: "Quotes are ranked by real cost: the price plus port late fees." },
   { key: "book", label: "Book", say: "PortCall books the lowest real cost and holds the card." },
 ];
@@ -149,7 +149,7 @@ export function HeroPreview() {
             </li>
           ))}
         </ol>
-        <span className="text-[12.5px] font-semibold text-crane">Replay of a recorded run, sped up</span>
+        <span className="text-[12.5px] font-semibold text-crane">Replay of a recorded run with 3 carriers, sped up</span>
       </div>
       <AnimatePresence mode="wait" initial={false}>
         <motion.p

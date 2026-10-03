@@ -8,8 +8,8 @@ const SOURCE = "https://www.insidelogistics.ca/digitization/phone-and-email-stil
 const WHO = [
   {
     who: "The import team",
-    gets: "Three quotes in two minutes, without a phone call.",
-    how: "Ranked by what each will really cost, and booked before late fees start. One coordinator can run every box that lands.",
+    gets: "Every quote in about two minutes, without a phone call.",
+    how: "PortCall calls every trucker that serves the lane at the same time, whether that is two or eight, ranks them by what each will really cost, and books before late fees start.",
   },
   {
     who: "Their AI agent",
@@ -25,7 +25,7 @@ const WHO = [
 
 const RUN = [
   { at: "0:00", title: "Claude asks for quotes", body: "An agent calls request_quotes over MCP. A person can press the button, or pg_cron starts it when a box is three days out." },
-  { at: "0:04", title: "Three phones ring at once", body: "PortCall calls Marshgrass, Ironclad and Sweetgrass in parallel and says it is an AI in the first sentence." },
+  { at: "0:04", title: "Every carrier's phone rings at once", body: "PortCall calls each carrier that serves the lane in parallel, three in this demo, and says it is an AI in the first sentence." },
   { at: "0:38", title: "Numbers land as they are spoken", body: "Linehaul, fuel, chassis, extra fees and pickup date are pulled from each conversation and linked to the exact words." },
   { at: "1:36", title: "Ranked on what it will really cost", body: "Ironclad is $252 cheaper on paper, but its pickup lands two days after the last free day. Marshgrass wins at $847." },
   { at: "1:37", title: "Booked inside the spending limit", body: "Stripe holds the card, a tender email goes to the carrier, and delivery releases the payment." },
@@ -69,7 +69,7 @@ export default function Landing() {
               84% of freight forwarders still get quotes by phone and email.
             </a>{" "}
             With PortCall, <span className="font-semibold text-fg">a one-person import team</span> gets{" "}
-            <span className="font-semibold text-fg">three drayage quotes in two minutes</span> without making a call, and the agent{" "}
+            <span className="font-semibold text-fg">quotes from all of its truckers in about two minutes</span> without making a call, and the agent{" "}
             <span className="font-semibold text-fg">books and pays before late fees hit</span>.
           </p>
           <div className="mt-9 flex flex-wrap items-center justify-center gap-3">

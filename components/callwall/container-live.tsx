@@ -183,7 +183,7 @@ export function ContainerLive({
       ? "Quotes are in, ranked by real cost"
       : activeQr?.status === "failed"
         ? "That run did not finish"
-        : "Three carriers, about two minutes";
+        : "Every carrier on this lane, at once";
   const subline = calling
     ? mode === "replay"
       ? "Replaying recorded dispatcher calls through the live pipeline. This is not a live call."
@@ -250,7 +250,7 @@ export function ContainerLive({
               )}
               {canQuote && (
                 <button type="button" className="btn-primary" onClick={getQuotes} disabled={requesting} data-testid="get-quotes">
-                  {requesting ? "Dialing..." : activeQr ? "Call carriers again" : "Call 3 carriers"}
+                  {requesting ? "Dialing..." : activeQr ? "Call carriers again" : `Call ${slots.length} carrier${slots.length === 1 ? "" : "s"}`}
                 </button>
               )}
             </div>
@@ -325,7 +325,7 @@ export function ContainerLive({
 
           <div className="relative mt-8">
             <LayoutGroup>
-              <div className="grid gap-5 md:grid-cols-3 xl:gap-6">
+              <div className={`grid gap-5 xl:gap-6 ${slots.length === 1 ? "max-w-xl" : slots.length === 2 ? "md:grid-cols-2" : "md:grid-cols-3"}`}>
                 {slots.map((s, i) => {
                   const q = s.call ? quoteByCall.get(s.call.id) : undefined;
                   const rank = recommendation && q ? (recommendation.ranked_quote_ids ?? []).indexOf(q.id) + 1 || undefined : undefined;
