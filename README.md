@@ -4,6 +4,8 @@
 
 Agents can't pick up a phone, and freight still runs on phone calls and email: 84% of freight forwarders still get quotes that way and 78% still book that way ([Container xChange and Copenhagen Business School survey, Nov 2022](https://www.insidelogistics.ca/digitization/phone-and-email-still-most-common-way-to-make-a-freight-booking-183672/)). PortCall gives agents a phone line to the freight world: an MCP server that dials your own trucking providers in parallel with a voice agent, pulls the quote out of the conversation as it happens, ranks the offers on risk-adjusted cost, and books and pays inside a spending guardrail.
 
+**Why it compounds:** smarter voice agents negotiate better and reach more carriers, and every call adds rate and reliability data to Supabase (the lane history), so PortCall gets better as models improve.
+
 Built for the Supabase Select Hackathon (theme: build something agents want).
 
 - **Live app:** https://portcall-three.vercel.app
@@ -14,6 +16,19 @@ All data is synthetic: fictional importer, carriers, rates and addresses. Stripe
 
 **Replay and live:** outside our stage demo the app runs in replay mode, so judges never ring a real phone: recorded dispatcher answers go through the real webhook, and extraction (Claude), ranking (Claude), Realtime, Stripe booking, the Resend tender email and capture on delivery all run for real. Live mode (`CALL_MODE=live`) places the same three calls through Vapi.
 
+## Try it (judges)
+
+1. Open https://portcall-three.vercel.app, click **Try the demo**, and sign in with the judge login (or press **Fill judge login**).
+2. On **Inbound**, open **PHGU 482913-7**: it discharged at Wando Welch this morning, its last free day is 4 days out, and it is due in Fairburn, GA a day later.
+3. Press **Call carriers**. The Call Wall shows every call live from Supabase Realtime: who is talking, the transcript, and each price stamping in the moment it is said, linked to the words it came from.
+4. When the calls end, Claude's decision and reasoning appear at the top. Quotes are ranked on real cost (all-in price plus estimated demurrage if pickup misses the last free day), and the **Lane history** panel shows how each carrier compares with its own last 90 days on this lane.
+5. The winner is booked inside the $1,500 limit: Stripe authorizes the card (test mode) and the carrier gets a tender email.
+6. On the booking card, open the **carrier view**: Accept, then Picked up, then Delivered. Delivery captures the payment and the booking stamps PAID.
+7. Click **Connect agent** in the top bar: add PortCall to Claude (one click), Claude Code, Cursor or VS Code, press **Test connection**, then ask your agent the prompt shown there. It finds the box, calls the carriers, explains the decision with lane history, and books within the limit.
+8. Press **Reset this box** to run it again.
+
+The top bar says **Replay mode** when calls are recorded dispatcher answers instead of live phone calls.
+
 ## How it works
 
 1. **The importer's board** lists inbound containers with ETA, last free day (LFD), destination DC and deliver-by date. Every box shows a live countdown to its LFD and a journey track from ship to door.
@@ -22,7 +37,8 @@ All data is synthetic: fictional importer, carriers, rates and addresses. Stripe
 4. **The Call Wall** streams every call live from Supabase Realtime: ringing and live status, a waveform that moves only while that side is talking, the transcript, and quote fields that stamp in the moment they are spoken, each linked back to the transcript line it came from.
 5. **Claude ranks the quotes** on risk-adjusted cost (all-in rate plus estimated demurrage if pickup lands after the LFD) and explains the call in plain English. Cheapest is not always best.
 6. **Booking**: a human clicks Book, the agent books over MCP, or PortCall auto-books when the winner is under the importer's limit. Stripe authorizes the importer's saved card with the payout routed to the provider's Stripe Connect account and a platform fee. Agent and auto bookings above the limit are rejected server-side with "needs human approval".
-7. **Tender email** (Resend) goes to the provider with a one-tap Accept link. The provider's phone page has Accept, then Picked up, then Delivered. **Delivered captures the payment.**
+7. **Tender email** (Resend) goes to the provider with a one-tap Accept link. The provider's phone page has Accept, then Picked up (only after the box is off the ship), then Delivered. **Delivered captures the payment.**
+8. **Lane history**: every ranked run records each carrier's quote, pickup timing against the last free day, and whether it won. The container page charts 90 days per carrier, and the agent compares new quotes with it ("4% below its usual $833 on this lane, on time on 97% of past loads").
 
 Freight mapping: the tender email is an EDI 204, Accept is the 990, pickup and delivery are 214s, capture on delivery is the 210. Voice comes first because that is where carriers already are.
 
@@ -54,7 +70,7 @@ Every arrow that changes state writes to Supabase first; the UI only animates wh
 
 | Feature | What it does here |
 |---|---|
-| **Postgres** | 10 tables: importers, providers, containers, quote_requests, calls, transcript_lines, quotes, recommendations, bookings, events |
+| **Postgres** | 11 tables: importers, providers, containers, quote_requests, calls, transcript_lines, quotes, recommendations, bookings, events, lane_rates (lane history that grows with every call; 90 days of clearly labeled synthetic history are seeded) |
 | **Row Level Security** | On every table. Importers read only their own rows through ownership helpers in a private (non-exposed) schema; webhooks and server routes write with the service role |
 | **Realtime** | `postgres_changes` on 8 tables drives the Call Wall: status pills, waveform, transcript, field stamps, ranking reveal, AUTHORIZED/PAID stamps and the timeline, all RLS-scoped |
 | **Auth** | Cookie sessions (`@supabase/ssr`) for the console, judge account seeded |
