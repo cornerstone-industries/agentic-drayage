@@ -1,14 +1,21 @@
-# Handoff: who can take what (Oct 3, 1:25 PM PT)
+# Handoff: who can take what (updated Oct 3, 2:00 PM PT)
 
 Read in this order: this file, then `KEYS_TODO.md` (the runbook), then `CLAUDE.md` (the build doc, with a build status section at the top).
 
 ## State
 
-- **Built:** every route in CLAUDE.md section 12, the full call pipeline, replay mode, all integrations (Vapi, Claude via AI Gateway, Stripe Connect, Resend, MCP, pg_cron), verification scripts, README draft.
-- **Verified locally** (local Supabase stack, DEV ONLY fixture AI, no third-party keys): `npm run build`, `npm run lint`, `npx tsc --noEmit` clean; `npm run test:replay` all PASS; `npm run test:mcp` all PASS except `book_quote` (needs Stripe); Call Wall, ranking reveal, settings, tender page and phone layouts reviewed in a browser.
-- **Not verified yet** (needs keys): real Claude extraction/ranking, real Vapi calls, Stripe, Resend, the hosted deploy.
-- **Supabase:** project `portcall`, Cornerstone org, ref `apbvdeghnqrvagjdscog`. Migrations applied. Not seeded until someone adds `SUPABASE_SERVICE_ROLE_KEY` (KEYS_TODO section 1).
-- **Local dev trick:** `.env.development.local` (gitignored, may exist on Will's machine) points `next dev` at a local Supabase stack on ports 5442x. Delete it to use the hosted project.
+**Live: https://portcall-three.vercel.app** (Vercel project `portcall`, Cornerstone team; pushes to main auto-deploy). Judge login `judge@portcall.dev` / `portcall-judge-2026`.
+
+Verified on production:
+- Supabase seeded; judge login works; RLS (judge sees 5 boxes, anon sees 0).
+- Claude via AI Gateway: `CALL_MODE=replay npm run test:replay` all PASS (Haiku extracts, Sonnet ranks, Marshgrass wins).
+- Stripe sandbox "PortCall" (inside Cornerstone's Stripe): card on file, 3 carriers onboarded via API, both webhooks created; `npm run test:stripe` all PASS (authorize, accept, picked up, delivered captures, agent over limit rejected).
+- Resend: tender email lands in lammerswill33@gmail.com (onboarding@resend.dev can only mail the account owner).
+- MCP: `npm run test:mcp` all PASS against prod.
+
+Left: **Vapi live calls (Ben)**, then rehearsal, video, screenshots, README URL, repo public, submit.
+
+Production still runs `CALL_MODE=replay` until Vapi is set up. Every `.env.local` key is on Vercel; `vercel env pull .env.local` gets them.
 
 ## Divide and conquer
 
@@ -16,9 +23,9 @@ Each lane is independent once section 1 (service role key + seed) and section 2 
 
 | Lane | Owner | Steps (KEYS_TODO section) | Done when |
 |---|---|---|---|
-| A. Deploy + AI | Will | 1, 2, 3 | prod `/login` returns 200 and `CALL_MODE=replay npm run test:replay` passes against prod with real Claude |
+| A. Deploy + AI | Will | 1, 2, 3 | DONE |
 | B. Phones | Ben | 4 | a real call to a teammate's phone streams onto the Call Wall; then all 3 teammates run the dispatcher scripts in CLAUDE.md section 15 (Sweetgrass must say "fuel 19% on top") |
-| C. Money | Will | 5, 6 | `npm run test:stripe` passes and the tender email with Accept lands in the inbox |
+| C. Money | Will | 5, 6 | DONE |
 | D. Agent demo | Ben | 7 | `npm run test:mcp` passes against prod and Claude Code runs the stage prompt end to end |
 | E. Submission | both | 8 | screenshots, 60 to 90 s backup video (replay mode is fine, say so), README `APP_URL_HERE` filled, repo public, submitted by 4:45 |
 
