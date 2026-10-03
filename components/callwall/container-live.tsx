@@ -14,6 +14,7 @@ import { PaymentStamp } from "./payment-stamp";
 import { Timeline } from "./timeline";
 import { lossReasons } from "./fields";
 import { useContainerLive } from "./use-container-live";
+import { resetBox } from "@/app/containers/[id]/actions";
 import type { LiveSnapshot } from "@/lib/live/snapshot";
 import type { Provider, Quote } from "@/lib/types";
 
@@ -38,7 +39,7 @@ export function ContainerLive({
   demurragePerDayCents: number;
   autoBook: { enabled: boolean; limitCents: number };
 }) {
-  const { state, connected } = useContainerLive(initial);
+  const { state, connected, refresh } = useContainerLive(initial);
   const { container: c, events } = state;
   const providerMap = useMemo(() => new Map(providers.map((p) => [p.id, p])), [providers]);
   const activeQr = state.quoteRequests[0] ?? null;
@@ -124,6 +125,28 @@ export function ContainerLive({
     }
   }
 
+  // Two-step reset so a stray click never wipes a run.
+  const [armed, setArmed] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  useEffect(() => {
+    if (!armed) return;
+    const t = setTimeout(() => setArmed(false), 3500);
+    return () => clearTimeout(t);
+  }, [armed]);
+  async function onReset() {
+    if (!armed) return setArmed(true);
+    setArmed(false);
+    setResetting(true);
+    const r = await resetBox(c.id);
+    if (!r.ok) setRequestError(r.message);
+    else {
+      setRequestError(null);
+      setBookError(null);
+      await refresh();
+    }
+    setResetting(false);
+  }
+
   const calling = activeQr?.status === "calling";
   const canQuote = !CLOSED.has(c.status ?? "") && !calling;
   const city = cityFromAddress(c.destination_address);
@@ -198,6 +221,12 @@ export function ContainerLive({
                     : `Three carriers on the line at once. ${mode === "replay" ? "Replay mode is on: recorded scripts, real pipeline." : "Live phone calls through Vapi."}`}
               </p>
             </div>
+            <div className="flex flex-wrap items-start gap-3">
+            {state.quoteRequests.length > 0 && !calling && (
+              <button type="button" className="btn-ghost !py-3" onClick={onReset} disabled={resetting} data-testid="reset-box">
+                {resetting ? "Resetting..." : armed ? "Click again to reset" : "Reset this box"}
+              </button>
+            )}
             {canQuote && (
               <div className="flex flex-col items-end gap-1.5">
                 <button type="button" className="btn-sodium" onClick={getQuotes} disabled={requesting} data-testid="get-quotes">
@@ -206,6 +235,7 @@ export function ContainerLive({
                 <span className="font-mono text-[11px] text-muted">or let your agent call request_quotes over MCP</span>
               </div>
             )}
+            </div>
           </div>
           {requestError && <p className="mb-4 rounded-[3px] border border-alarm/40 bg-alarm/10 px-3 py-2 font-mono text-xs text-alarm">{requestError}</p>}
           {failNote && (
