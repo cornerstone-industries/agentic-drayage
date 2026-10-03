@@ -8,11 +8,11 @@ const SHAPE = Array.from({ length: BARS }, (_, i) => 0.35 + 0.65 * Math.abs(Math
 export function Waveform({ speaking, live }: { speaking: "assistant" | "user" | null; live: boolean }) {
   const color = speaking === "assistant" ? "var(--sodium)" : speaking === "user" ? "var(--signal)" : "var(--dim)";
   return (
-    <div className="flex h-9 items-center gap-[3px]" aria-hidden>
+    <div className="flex h-9 min-w-0 flex-1 items-center gap-[3px] overflow-hidden" aria-hidden>
       {SHAPE.map((h, i) => (
         <span
           key={i}
-          className={speaking ? "bar w-[3px] rounded-full" : "w-[3px] rounded-full transition-transform duration-300"}
+          className={speaking ? "bar w-[3px] shrink-0 rounded-full" : "w-[3px] shrink-0 rounded-full transition-transform duration-300"}
           style={{
             height: `${Math.round(h * 100)}%`,
             background: color,

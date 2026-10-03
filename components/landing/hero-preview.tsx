@@ -10,6 +10,9 @@ import { StatusPill } from "@/components/callwall/status-pill";
 
 type Fields = Record<string, unknown>;
 
+// The landing preview runs the recorded scripts faster than real time so a visitor sees the whole run.
+const PREVIEW_SPEED = 2.4;
+
 /** Precompute when each line of each script starts and ends, like the replay does. */
 function plan(scripts: DispatcherScript[]) {
   return scripts.map((s, i) => {
@@ -53,7 +56,7 @@ export function HeroPreview() {
     const start = performance.now();
     let raf = 0;
     const loop = (now: number) => {
-      setT((now - start) % total);
+      setT(((now - start) * PREVIEW_SPEED) % total);
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
@@ -102,15 +105,15 @@ export function HeroPreview() {
                 <span className="font-mono text-[10px] text-dim">CH {i + 1}</span>
                 <StatusPill status={c.status} />
               </div>
-              <div className="mt-2 font-display text-[15px] font-extrabold leading-tight font-semiwide">{c.script.providerName}</div>
+              <div className="mt-2 min-h-[2.5em] font-display text-[15px] font-extrabold leading-tight font-semiwide">{c.script.providerName}</div>
               <div className="mt-2">
                 <Waveform speaking={(c.speaking?.role as "assistant" | "user") ?? null} live={c.status === "in_progress"} />
               </div>
               <div className="mt-2 h-[84px] overflow-hidden border-y border-line py-1.5">
                 <AnimatePresence initial={false}>
-                  {c.said.slice(-3).map((l) => (
+                  {[...c.said, ...(c.speaking ? [{ ...c.speaking, text: c.speaking.text.slice(0, Math.max(1, Math.round(((t - c.speaking.start) / (c.speaking.end - c.speaking.start)) * c.speaking.text.length))), partial: true }] : [])].slice(-3).map((l) => (
                     <motion.p
-                      key={l.text}
+                      key={`l-${l.start}`}
                       layout
                       initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}

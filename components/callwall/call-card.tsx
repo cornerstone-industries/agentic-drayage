@@ -78,7 +78,8 @@ export function CallCard({ channel, provider, call, lines, quote, lastFreeDay, r
   useEffect(() => {
     const el = ticker.current;
     if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
-  }, [lines.length]);
+    // rank: moving a card in the DOM resets its scroll, so pin the newest line again after a re-sort
+  }, [lines.length, rank]);
 
   // Connector glow from each freshly stamped field back to the line it came from.
   const card = useRef<HTMLDivElement>(null);
@@ -145,9 +146,9 @@ export function CallCard({ channel, provider, call, lines, quote, lastFreeDay, r
         <p className="mt-1 font-mono text-[11px] text-muted">
           {provider.contact_name ?? "Dispatch"}, {provider.phone}
         </p>
-        <div className="mt-3 flex items-center gap-3">
+        <div className="mt-3 flex items-center gap-3 overflow-hidden">
           <Waveform speaking={(call?.speaking as "assistant" | "user" | null) ?? null} live={live} />
-          <span className="whitespace-nowrap font-mono text-[11px] text-muted">
+          <span className="shrink-0 whitespace-nowrap font-mono text-[11px] text-muted">
             {call?.speaking === "assistant" ? (
               <span className="text-sodium">PortCall speaking</span>
             ) : call?.speaking === "user" ? (

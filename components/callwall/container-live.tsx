@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, LayoutGroup, motion } from "motion/react";
 import { formatContainerNumber, formatUsd } from "@/lib/money";
 import { cityFromAddress, portDate, shortDate } from "@/lib/dates";
@@ -76,6 +76,13 @@ export function ContainerLive({
     return list;
   }, [state.calls, activeQr, eligibleIds, providerMap, recommendation, quoteByCall]);
 
+  // The timeline reads like a log: keep the newest entry in view.
+  const timelineBox = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = timelineBox.current;
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+  }, [events.length]);
+
   const [requesting, setRequesting] = useState(false);
   const [requestError, setRequestError] = useState<string | null>(null);
   const [booking_, setBooking_] = useState(false);
@@ -143,7 +150,7 @@ export function ContainerLive({
                 {connected ? "Realtime connected" : "Connecting"}
               </span>
             </div>
-            <h1 className="stencil mt-3 text-4xl text-fg sm:text-6xl" data-container={c.container_number}>
+            <h1 className="stencil mt-3 whitespace-nowrap text-[clamp(28px,4.2vw,56px)] leading-none text-fg" data-container={c.container_number}>
               {formatContainerNumber(c.container_number)}
             </h1>
             <dl className="mt-4 grid grid-cols-2 gap-x-8 gap-y-2 font-mono text-xs sm:grid-cols-4">
@@ -331,7 +338,7 @@ export function ContainerLive({
             <h2 className="font-display text-sm font-extrabold uppercase tracking-wide font-semiwide">Timeline</h2>
             <span className="font-mono text-[10.5px] text-dim">live from Supabase</span>
           </div>
-          <div className="flex-1 overflow-y-auto px-4 py-3 [scrollbar-width:thin]">
+          <div ref={timelineBox} className="flex-1 overflow-y-auto px-4 py-3 [scrollbar-width:thin]">
             {events.length ? <Timeline events={events} providers={providerMap} /> : <p className="font-mono text-xs text-dim">Nothing yet. Get quotes to start the clock.</p>}
           </div>
         </div>

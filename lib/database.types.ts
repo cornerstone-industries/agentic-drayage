@@ -552,13 +552,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      owns_call: { Args: { p_call_id: string }; Returns: boolean }
-      owns_container: { Args: { p_container_id: string }; Returns: boolean }
-      owns_importer: { Args: { p_importer_id: string }; Returns: boolean }
-      owns_quote_request: {
-        Args: { p_quote_request_id: string }
-        Returns: boolean
-      }
+      portcall_autoquote_tick: { Args: never; Returns: undefined }
     }
     Enums: {
       [_ in never]: never

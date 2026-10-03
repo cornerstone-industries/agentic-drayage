@@ -3,6 +3,7 @@
 import { AnimatePresence, motion } from "motion/react";
 import { formatUsd } from "@/lib/money";
 import { fieldLabel } from "./fields";
+import { shortDate } from "@/lib/dates";
 import type { EventRow, Provider } from "@/lib/types";
 
 type P = Record<string, unknown>;
@@ -23,9 +24,15 @@ function describe(e: EventRow, providers: Map<string, Provider>): { text: string
       return { text: `${prov} picked up`, tone: "text-signal" };
     case "field_heard": {
       const v = p.value;
-      const val =
-        typeof v === "number" ? (String(p.field).endsWith("_cents") ? formatUsd(v) : String(v)) : typeof v === "boolean" ? (v ? "yes" : "no") : Array.isArray(v) ? (v.length ? `${v.length} fee${v.length > 1 ? "s" : ""}` : "none") : String(v);
-      return { text: `${prov}: ${fieldLabel(String(p.field)).toLowerCase()} ${val}`, tone: "text-muted" };
+      const field = String(p.field);
+      let val: string;
+      if (field === "earliest_pickup") val = shortDate(String(v));
+      else if (field === "est_chassis_days") val = `${v} day${v === 1 ? "" : "s"}`;
+      else if (typeof v === "number") val = v === 0 && field !== "linehaul_cents" ? "included" : formatUsd(v);
+      else if (typeof v === "boolean") val = v ? "yes" : "no";
+      else if (Array.isArray(v)) val = v.length ? v.map((a: { name: string; cents: number }) => `${formatUsd(a.cents)} ${a.name.toLowerCase()}`).join(", ") : "none";
+      else val = String(v);
+      return { text: `${prov}: ${fieldLabel(field).toLowerCase()} ${val}`, tone: "text-muted" };
     }
     case "call_ended":
       return { text: `${prov} ${p.status === "no_answer" ? "did not answer" : p.status === "failed" ? "call failed" : "hung up"}`, tone: "text-muted" };
@@ -66,8 +73,14 @@ function describe(e: EventRow, providers: Map<string, Provider>): { text: string
   }
 }
 
+// "chassis days 0" next to "chassis included" is noise on the log.
+const quiet = (e: EventRow) => {
+  const p = (e.payload ?? {}) as P;
+  return e.type === "field_heard" && p.field === "est_chassis_days" && !p.value;
+};
+
 export function Timeline({ events, providers }: { events: EventRow[]; providers: Map<string, Provider> }) {
-  const recent = events.slice(-80);
+  const recent = events.filter((e) => !quiet(e)).slice(-80);
   return (
     <ol className="space-y-0.5" aria-label="Container timeline">
       <AnimatePresence initial={false}>
