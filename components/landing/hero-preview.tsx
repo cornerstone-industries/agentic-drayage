@@ -46,13 +46,12 @@ export function HeroPreview() {
   );
   const timeline = useMemo(() => plan(buildScripts(container)), [container]);
   const total = Math.max(...timeline.map((c) => c.endAt)) + 7000;
-  const [t, setT] = useState(0);
+  const [tick, setT] = useState(0);
+  // Reduced motion shows the finished run instead of playing it.
+  const t = reduce ? total - 1 : tick;
 
   useEffect(() => {
-    if (reduce) {
-      setT(total - 1);
-      return;
-    }
+    if (reduce) return;
     const start = performance.now();
     let raf = 0;
     const loop = (now: number) => {

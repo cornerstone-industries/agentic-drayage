@@ -6,9 +6,12 @@ import { useEffect, useState } from "react";
 export function PortClock() {
   const [now, setNow] = useState<Date | null>(null);
   useEffect(() => {
-    setNow(new Date());
+    const first = setTimeout(() => setNow(new Date()), 0);
     const id = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(id);
+    return () => {
+      clearTimeout(first);
+      clearInterval(id);
+    };
   }, []);
   const time = now?.toLocaleTimeString("en-US", { timeZone: "America/New_York", hour12: false }) ?? "--:--:--";
   return (

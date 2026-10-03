@@ -17,7 +17,6 @@
     "shots": "tsx scripts/shots.ts",
     "setup:vapi": "tsx scripts/setup-vapi.ts",
     "setup:stripe": "tsx scripts/setup-stripe.ts",
-    "setup:cron": "tsx scripts/setup-cron.ts",
     "demo:reset": "tsx scripts/reset-demo.ts",
     "vercel:env": "tsx scripts/vercel-env.ts"
   },

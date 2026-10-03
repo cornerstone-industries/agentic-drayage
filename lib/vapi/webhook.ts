@@ -48,7 +48,9 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export function statusForEndedReason(reason: string | undefined): CallStatus {
   if (!reason) return "ended";
   if (/did-not-answer|customer-busy|voicemail|no-answer/.test(reason)) return "no_answer";
-  if (/error|failed|fault|frozen|insufficient|limit-reached|misdialed/.test(reason)) return "failed";
+  if (/error|failed|fault|frozen|insufficient|limit-reached|misdialed|not-found|not-valid|returned-no-assistant|returned-invalid|no-available/.test(reason)) {
+    return "failed";
+  }
   return "ended";
 }
 
@@ -154,14 +156,17 @@ export async function processVapiMessage(raw: unknown): Promise<ProcessResult> {
         await runExtraction(call.id);
       } finally {
         // summary marks "report processed"; the last call to get here triggers the ranking.
-        await db.from("calls").update({ summary: msg.analysis?.summary?.trim() || "Call complete." }).eq("id", call.id);
+        await db.from("calls").update({ summary: msg.analysis?.summary?.trim() || call.summary || "Call complete." }).eq("id", call.id);
         await finalizeQuoteRequest(call.quote_request_id!);
       }
     },
   };
 }
 
-/** If live transcript events never arrived, rebuild the lines from the end-of-call artifact. */
+/**
+ * If no live transcript event ever arrived, rebuild the lines from the end-of-call artifact. Only when
+ * empty: Vapi's artifact merges utterances that arrived as separate live lines, so diffing would duplicate.
+ */
 async function backfillTranscript(db: AdminClient, callId: string, msg: VapiMessage) {
   const { count } = await db.from("transcript_lines").select("id", { count: "exact", head: true }).eq("call_id", callId);
   if (count) return;

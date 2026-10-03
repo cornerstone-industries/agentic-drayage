@@ -3,13 +3,12 @@
 import { useEffect, useState } from "react";
 import { useReducedMotion } from "motion/react";
 
-/** Claude's reasoning types out once, the only animation allowed to run long. */
+/** Claude's reasoning types out once, the only animation allowed to run long. Key it by the text's source to restart. */
 export function Typewriter({ text, speedMs = 16 }: { text: string; speedMs?: number }) {
   const reduce = useReducedMotion();
   const [n, setN] = useState(0);
   useEffect(() => {
     if (reduce) return;
-    setN(0);
     const id = setInterval(() => setN((x) => (x >= text.length ? x : x + 1)), speedMs);
     return () => clearInterval(id);
   }, [text, speedMs, reduce]);
