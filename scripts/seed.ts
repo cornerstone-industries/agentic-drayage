@@ -10,7 +10,7 @@ config({ path: ".env.local" });
 config();
 
 import { createClient } from "@supabase/supabase-js";
-import type { Database } from "../lib/database.types";
+import type { Database, Json } from "../lib/database.types";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY;
@@ -256,7 +256,7 @@ async function main() {
     if (bErr) throw bErr;
 
     const t = (base: Date, minutes: number) => iso(new Date(base.getTime() + minutes * 60_000));
-    const events: { container_id: string; type: string; payload: Record<string, unknown>; created_at: string }[] = [
+    const events: { container_id: string; type: string; payload: Json; created_at: string }[] = [
       { container_id: containerId, type: "quote_requested", payload: { triggered_by: h.bookedBy === "human" ? "button" : h.bookedBy, seeded: true }, created_at: t(bookedAt, -4) },
       { container_id: containerId, type: "recommended", payload: { provider_id: providerId, seeded: true }, created_at: t(bookedAt, -1) },
       { container_id: containerId, type: "booked", payload: { provider_id: providerId, amount_cents: allIn, booked_by: h.bookedBy, seeded: true }, created_at: t(bookedAt, 0) },

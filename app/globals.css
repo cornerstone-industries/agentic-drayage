@@ -2,67 +2,130 @@
 @tailwind components;
 @tailwind utilities;
 
-@layer base {
-  :root {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 3.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 3.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 3.9%;
-    --primary: 0 0% 9%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 0 0% 96.1%;
-    --secondary-foreground: 0 0% 9%;
-    --muted: 0 0% 96.1%;
-    --muted-foreground: 0 0% 45.1%;
-    --accent: 0 0% 96.1%;
-    --accent-foreground: 0 0% 9%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 89.8%;
-    --input: 0 0% 89.8%;
-    --ring: 0 0% 3.9%;
-    --chart-1: 12 76% 61%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
-    --radius: 0.5rem;
-  }
-  .dark {
-    --background: 0 0% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 0 0% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 0 0% 9%;
-    --secondary: 0 0% 14.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
-    --accent: 0 0% 14.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
-    --ring: 0 0% 83.1%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
-  }
+/* Port control room at night. Tokens from CLAUDE.md section 11. */
+:root {
+  --ink: #0a0e13;
+  --panel: #10161e;
+  --panel-2: #0d1219;
+  --line: #1c2733;
+  --sodium: #ffb020;
+  --signal: #2ee6c5;
+  --alarm: #ff4d4d;
+  --text: #e6edf3;
+  --muted: #7d8b99;
+  --dim: #4a5866;
+  color-scheme: dark;
 }
 
 @layer base {
-  * {
-    @apply border-border;
+  html,
+  body {
+    background: var(--ink);
+    color: var(--text);
   }
   body {
-    @apply bg-background text-foreground;
+    min-height: 100dvh;
+    font-feature-settings: "ss01", "tnum";
+    -webkit-font-smoothing: antialiased;
+  }
+  /* Faint survey grid + scanlines + sodium haze from the cranes */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -2;
+    pointer-events: none;
+    background:
+      radial-gradient(120% 60% at 50% -10%, rgba(255, 176, 32, 0.07), transparent 60%),
+      repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.018) 0 1px, transparent 1px 3px),
+      linear-gradient(rgba(28, 39, 51, 0.35) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(28, 39, 51, 0.35) 1px, transparent 1px),
+      var(--ink);
+    background-size: auto, auto, 56px 56px, 56px 56px, auto;
+  }
+  /* Film grain */
+  body::after {
+    content: "";
+    position: fixed;
+    inset: -50%;
+    z-index: 60;
+    pointer-events: none;
+    opacity: 0.055;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.9 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  }
+  :focus-visible {
+    outline: 2px solid var(--sodium);
+    outline-offset: 2px;
+  }
+  ::selection {
+    background: rgba(255, 176, 32, 0.35);
+  }
+}
+
+@layer components {
+  .font-wide {
+    font-variation-settings: "wdth" 125;
+  }
+  .font-semiwide {
+    font-variation-settings: "wdth" 112;
+  }
+  /* Box numbers are stenciled on steel */
+  .stencil {
+    font-family: var(--font-plex-mono), ui-monospace, monospace;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+  }
+  .panel {
+    background: linear-gradient(180deg, rgba(16, 22, 30, 0.96), rgba(13, 18, 25, 0.96));
+    border: 1px solid var(--line);
+  }
+  .hairline {
+    border-color: var(--line);
+  }
+  .tick-label {
+    font-family: var(--font-plex-mono), ui-monospace, monospace;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+  }
+  .bar {
+    transform-origin: center;
+    animation: bar 0.9s ease-in-out infinite;
+  }
+  .flap {
+    position: relative;
+    display: inline-flex;
+    justify-content: center;
+    min-width: 0.78em;
+    background: linear-gradient(180deg, #161e28 0 49%, #0b1017 51% 100%);
+    border-radius: 2px;
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.6);
+    perspective: 220px;
+    overflow: hidden;
+  }
+  .flap::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    height: 1px;
+    background: rgba(0, 0, 0, 0.85);
+  }
+  .btn-sodium {
+    @apply inline-flex items-center justify-center gap-2 rounded-[3px] bg-sodium px-5 py-3 font-display text-sm font-extrabold text-ink transition-[filter,transform] hover:brightness-110 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50;
+    font-variation-settings: "wdth" 115;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-[3px] border border-line px-4 py-2.5 font-display text-sm font-semibold text-fg transition-colors hover:border-muted disabled:cursor-not-allowed disabled:opacity-50;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bar,
+  .animate-ring-pulse,
+  .animate-live-glow,
+  .animate-blink {
+    animation: none !important;
   }
 }

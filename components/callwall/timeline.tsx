@@ -1,0 +1,96 @@
+"use client";
+
+import { AnimatePresence, motion } from "motion/react";
+import { formatUsd } from "@/lib/money";
+import { fieldLabel } from "./fields";
+import type { EventRow, Provider } from "@/lib/types";
+
+type P = Record<string, unknown>;
+
+const TRIGGER: Record<string, string> = { agent: "by an agent over MCP", button: "from the board", auto: "automatically before arrival" };
+
+function describe(e: EventRow, providers: Map<string, Provider>): { text: string; tone: string; code?: string } {
+  const p = (e.payload ?? {}) as P;
+  const prov = (p.provider_name as string) ?? providers.get(p.provider_id as string)?.name ?? "Carrier";
+  const usd = (k: string) => formatUsd(p[k] as number);
+  switch (e.type) {
+    case "quote_requested": {
+      const n = (p.providers as string[] | undefined)?.length ?? 0;
+      const skipped = (p.skipped as unknown[] | undefined)?.length ?? 0;
+      return { text: `Quotes requested ${TRIGGER[p.triggered_by as string] ?? ""}. Dialing ${n}${skipped ? `, ${skipped} skipped (lane not served)` : ""}${p.mode === "replay" ? " [replay]" : ""}`, tone: "text-sodium" };
+    }
+    case "call_started":
+      return { text: `${prov} picked up`, tone: "text-signal" };
+    case "field_heard": {
+      const v = p.value;
+      const val =
+        typeof v === "number" ? (String(p.field).endsWith("_cents") ? formatUsd(v) : String(v)) : typeof v === "boolean" ? (v ? "yes" : "no") : Array.isArray(v) ? (v.length ? `${v.length} fee${v.length > 1 ? "s" : ""}` : "none") : String(v);
+      return { text: `${prov}: ${fieldLabel(String(p.field)).toLowerCase()} ${val}`, tone: "text-muted" };
+    }
+    case "call_ended":
+      return { text: `${prov} ${p.status === "no_answer" ? "did not answer" : p.status === "failed" ? "call failed" : "hung up"}`, tone: "text-muted" };
+    case "call_failed":
+      return { text: `${prov} call failed: ${p.error}`, tone: "text-alarm" };
+    case "recommended":
+      return { text: `Ranked. ${p.winner_provider} recommended at ${usd("all_in_cents")}${p.engine === "fixture" ? " [fixture AI]" : ""}`, tone: "text-sodium" };
+    case "quote_failed":
+      return { text: `Quote run failed: ${p.reason}`, tone: "text-alarm" };
+    case "auto_book_skipped":
+      return { text: `Auto-book held: ${p.reason}`, tone: "text-muted" };
+    case "auto_book_failed":
+      return { text: `Auto-book failed: ${p.error}`, tone: "text-alarm" };
+    case "booked":
+      return { text: `Booked ${prov} for ${usd("amount_cents")}${p.booked_by === "agent" ? " by the agent" : p.booked_by === "auto" ? " automatically" : ""}`, tone: "text-sodium" };
+    case "payment_authorized":
+      return { text: `Card authorized ${usd("amount_cents")}`, tone: "text-sodium", code: "Stripe" };
+    case "payment_failed":
+      return { text: `Payment failed: ${p.error ?? p.message ?? ""}`, tone: "text-alarm" };
+    case "tender_sent":
+      return { text: `Tender emailed to ${prov}`, tone: "text-fg", code: "204" };
+    case "tender_email_failed":
+      return { text: `Tender email failed: ${p.error}`, tone: "text-alarm" };
+    case "accepted":
+      return { text: `${prov} accepted the tender`, tone: "text-signal", code: "990" };
+    case "declined":
+      return { text: `${prov} declined the tender`, tone: "text-alarm", code: "990" };
+    case "picked_up":
+      return { text: "Picked up at the terminal", tone: "text-signal", code: "214" };
+    case "delivered":
+      return { text: "Delivered to the DC", tone: "text-signal", code: "214" };
+    case "payment_captured":
+      return { text: `Payment captured ${usd("amount_cents")}`, tone: "text-signal", code: "210" };
+    case "payment_canceled":
+      return { text: "Authorization released", tone: "text-muted" };
+    default:
+      return { text: e.type.replace(/_/g, " "), tone: "text-muted" };
+  }
+}
+
+export function Timeline({ events, providers }: { events: EventRow[]; providers: Map<string, Provider> }) {
+  const recent = events.slice(-80);
+  return (
+    <ol className="space-y-0.5" aria-label="Container timeline">
+      <AnimatePresence initial={false}>
+        {recent.map((e) => {
+          const d = describe(e, providers);
+          const t = e.created_at ? new Date(e.created_at) : null;
+          return (
+            <motion.li
+              key={e.id}
+              initial={{ opacity: 0, x: -6 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.25 }}
+              className="grid grid-cols-[62px_1fr_auto] gap-2 py-1 font-mono text-[11.5px] leading-snug"
+            >
+              <time className="text-dim tabular-nums">
+                {t ? t.toLocaleTimeString("en-US", { hour12: false, timeZone: "America/New_York" }) : ""}
+              </time>
+              <span className={d.tone}>{d.text}</span>
+              {d.code ? <span className="text-dim" title={d.code === "Stripe" ? "Stripe" : `EDI ${d.code} equivalent`}>{d.code === "Stripe" ? "" : `EDI ${d.code}`}</span> : <span />}
+            </motion.li>
+          );
+        })}
+      </AnimatePresence>
+    </ol>
+  );
+}

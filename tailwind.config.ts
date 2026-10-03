@@ -1,63 +1,47 @@
 import type { Config } from "tailwindcss";
 
 export default {
-  darkMode: ["class"],
-  content: [
-    "./pages/**/*.{js,ts,jsx,tsx,mdx}",
-    "./components/**/*.{js,ts,jsx,tsx,mdx}",
-    "./app/**/*.{js,ts,jsx,tsx,mdx}",
-    "./src/**/*.{js,ts,jsx,tsx,mdx}",
-  ],
+  content: ["./app/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}", "./lib/**/*.{ts,tsx}"],
   theme: {
     extend: {
       colors: {
-        background: "hsl(var(--background))",
-        foreground: "hsl(var(--foreground))",
-        card: {
-          DEFAULT: "hsl(var(--card))",
-          foreground: "hsl(var(--card-foreground))",
-        },
-        popover: {
-          DEFAULT: "hsl(var(--popover))",
-          foreground: "hsl(var(--popover-foreground))",
-        },
-        primary: {
-          DEFAULT: "hsl(var(--primary))",
-          foreground: "hsl(var(--primary-foreground))",
-        },
-        secondary: {
-          DEFAULT: "hsl(var(--secondary))",
-          foreground: "hsl(var(--secondary-foreground))",
-        },
-        muted: {
-          DEFAULT: "hsl(var(--muted))",
-          foreground: "hsl(var(--muted-foreground))",
-        },
-        accent: {
-          DEFAULT: "hsl(var(--accent))",
-          foreground: "hsl(var(--accent-foreground))",
-        },
-        destructive: {
-          DEFAULT: "hsl(var(--destructive))",
-          foreground: "hsl(var(--destructive-foreground))",
-        },
-        border: "hsl(var(--border))",
-        input: "hsl(var(--input))",
-        ring: "hsl(var(--ring))",
-        chart: {
-          "1": "hsl(var(--chart-1))",
-          "2": "hsl(var(--chart-2))",
-          "3": "hsl(var(--chart-3))",
-          "4": "hsl(var(--chart-4))",
-          "5": "hsl(var(--chart-5))",
-        },
+        ink: "var(--ink)",
+        panel: "var(--panel)",
+        "panel-2": "var(--panel-2)",
+        line: "var(--line)",
+        sodium: "var(--sodium)",
+        signal: "var(--signal)",
+        alarm: "var(--alarm)",
+        fg: "var(--text)",
+        muted: "var(--muted)",
+        dim: "var(--dim)",
       },
-      borderRadius: {
-        lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
+      fontFamily: {
+        sans: ["var(--font-archivo)", "system-ui", "sans-serif"],
+        display: ["var(--font-archivo)", "system-ui", "sans-serif"],
+        mono: ["var(--font-plex-mono)", "ui-monospace", "monospace"],
+      },
+      keyframes: {
+        "ring-pulse": {
+          "0%, 100%": { boxShadow: "0 0 0 0 rgba(255,176,32,0.55)" },
+          "50%": { boxShadow: "0 0 0 6px rgba(255,176,32,0)" },
+        },
+        "live-glow": {
+          "0%, 100%": { boxShadow: "0 0 10px 0 rgba(46,230,197,0.45)" },
+          "50%": { boxShadow: "0 0 18px 2px rgba(46,230,197,0.7)" },
+        },
+        bar: {
+          "0%, 100%": { transform: "scaleY(0.18)" },
+          "50%": { transform: "scaleY(1)" },
+        },
+        blink: { "0%, 100%": { opacity: "1" }, "50%": { opacity: "0" } },
+      },
+      animation: {
+        "ring-pulse": "ring-pulse 1.1s ease-out infinite",
+        "live-glow": "live-glow 2.2s ease-in-out infinite",
+        blink: "blink 1s steps(1) infinite",
       },
     },
   },
-  plugins: [require("tailwindcss-animate")],
+  plugins: [],
 } satisfies Config;
