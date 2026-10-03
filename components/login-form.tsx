@@ -1,13 +1,12 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 const JUDGE = { email: "judge@portcall.dev", password: "portcall-judge-2026" };
 
 export function LoginForm() {
-  const router = useRouter();
   const next = useSearchParams().get("next") || "/dashboard";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -24,8 +23,9 @@ export function LoginForm() {
       setLoading(false);
       return;
     }
-    router.push(next.startsWith("/") ? next : "/dashboard");
-    router.refresh();
+    // A full navigation hands the new session cookie straight to the server render; the soft
+    // push + refresh pair could stall behind the old router state.
+    window.location.assign(next.startsWith("/") && !next.startsWith("//") ? next : "/dashboard");
   }
 
   return (

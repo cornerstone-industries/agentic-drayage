@@ -12,7 +12,17 @@ export function boxColor(number: string): string {
 }
 
 /** A container door: corrugated steel in the box's color, the number stenciled white, lock rods. */
-export function ContainerDoor({ number, size, compact = false }: { number: string; size: string | null; compact?: boolean }) {
+export function ContainerDoor({
+  number,
+  size,
+  compact = false,
+  className = "",
+}: {
+  number: string;
+  size: string | null;
+  compact?: boolean;
+  className?: string;
+}) {
   const color = boxColor(number);
   if (compact) {
     return (
@@ -28,7 +38,10 @@ export function ContainerDoor({ number, size, compact = false }: { number: strin
     );
   }
   return (
-    <div className="corrugated relative h-full overflow-hidden rounded-[10px] px-6 py-5 text-white shadow-[0_18px_40px_-24px_rgba(0,0,0,0.6),inset_0_0_0_1px_rgba(0,0,0,0.3)] sm:px-7" style={{ ["--box" as string]: color }}>
+    <div
+      className={`corrugated relative overflow-hidden rounded-[10px] px-6 py-5 text-white shadow-[0_18px_40px_-24px_rgba(0,0,0,0.6),inset_0_0_0_1px_rgba(0,0,0,0.3)] sm:px-7 ${className}`}
+      style={{ ["--box" as string]: color }}
+    >
       {/* lock rods and handles */}
       {[16, 48].map((r) => (
         <span key={r} className="absolute inset-y-0 w-[5px] rounded bg-gradient-to-r from-black/35 via-white/15 to-black/35" style={{ right: r }}>
