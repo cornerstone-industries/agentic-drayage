@@ -64,6 +64,9 @@ async function main() {
       const keys = ["endpointingLatency", "transcriberLatency", "modelLatency", "voiceLatency", "turnLatency"];
       const parts = keys.map((k) => `${k.replace("Latency", "")} ${s(avg(turns.map((t) => t[k] ?? NaN).filter(Number.isFinite)))}`);
       console.log(`  Vapi breakdown (avg of ${turns.length} turns): ${parts.join(", ")}`);
+      const pm = call.artifact?.performanceMetrics as Record<string, unknown>;
+      const n = (k: string) => (typeof pm[k] === "number" ? (pm[k] as number) : "n/a");
+      console.log(`  interruptions: AI cut off by the dispatcher ${n("numAssistantInterrupted")}, dispatcher cut off by the AI ${n("numUserInterrupted")}; phone/network in ${typeof pm.fromTransportLatencyAverage === "number" ? s(pm.fromTransportLatencyAverage as number) : "n/a"}, out ${typeof pm.toTransportLatencyAverage === "number" ? s(pm.toTransportLatencyAverage as number) : "n/a"}`);
     } else if (call.artifact?.performanceMetrics) {
       console.log(`  Vapi performanceMetrics keys: ${Object.keys(call.artifact.performanceMetrics).join(", ")}`);
     }
