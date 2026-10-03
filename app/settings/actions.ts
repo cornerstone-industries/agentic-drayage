@@ -38,12 +38,20 @@ export async function saveGuardrails(input: z.infer<typeof Guardrails>): Promise
   return { ok: true, message: "Saved" };
 }
 
-const Phone = z.string().regex(/^\+[1-9]\d{7,14}$/, "Use E.164 format, like +18435550141");
+const Phone = z.string().regex(/^\+[1-9]\d{7,14}$/, "Enter a full number, like (843) 555-0141 or +44 20 7946 0958");
+
+/** "(843) 555-0141" and "1-843-555-0141" become "+18435550141"; anything starting with + keeps its country code. */
+function toE164(phone: string): string {
+  const cleaned = phone.replace(/[\s().-]/g, "");
+  if (/^\d{10}$/.test(cleaned)) return `+1${cleaned}`;
+  if (/^1\d{10}$/.test(cleaned)) return `+${cleaned}`;
+  return cleaned;
+}
 
 export async function saveProviderPhone(providerId: string, phone: string): Promise<ActionResult> {
   const session = await getSessionImporter();
   if (!session) return { ok: false, message: "Sign in again to change settings" };
-  const parsed = Phone.safeParse(phone.replace(/[\s()-]/g, ""));
+  const parsed = Phone.safeParse(toE164(phone));
   if (!parsed.success) return { ok: false, message: parsed.error.issues[0].message };
   const db = createAdminClient();
   const { data, error } = await db

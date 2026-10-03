@@ -32,7 +32,7 @@ const CLOSED = new Set(["booked", "accepted", "picked_up", "delivered"]);
 const LIVE_TIMEOUT_MS = 3 * 60_000 + 10_000;
 
 /** NANP's fictional range (NXX-555-0100 to 0199): seeded demo phones that can never answer. */
-const PLACEHOLDER_PHONE = /^\+1\d{3}55501\d{2}$/;
+export const PLACEHOLDER_PHONE = /^\+1\d{3}55501\d{2}$/;
 
 export function laneCheck(p: Provider, port: string, destState: string | null): string | null {
   if (!(p.ports ?? []).includes(port)) return `Not called: doesn't serve the Port of ${port}`;

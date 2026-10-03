@@ -1,45 +1,54 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
+import { CopyButton, pillButton } from "./controls";
+import { ArrowRightIcon } from "./icons";
 
-export function AgentAccess({ endpoint, apiKey }: { endpoint: string; apiKey: string }) {
-  const [show, setShow] = useState(false);
-  const [copied, setCopied] = useState<string | null>(null);
-  const copy = async (label: string, text: string) => {
-    await navigator.clipboard.writeText(text);
-    setCopied(label);
-    setTimeout(() => setCopied(null), 1500);
-  };
-  const masked = apiKey ? `${apiKey.slice(0, 6)}${"•".repeat(18)}${apiKey.slice(-4)}` : "No key";
-  const config = JSON.stringify({ mcpServers: { portcall: { url: endpoint, headers: { Authorization: `Bearer ${show ? apiKey : "<key>"}` } } } }, null, 2);
+function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
-    <div className="panel space-y-5 p-6">
-      <Link href="/connect" className="inline-flex text-[14px] font-semibold text-stamp hover:underline">
-        Set it up in Claude, Cursor or VS Code, and test the connection
-      </Link>
-      <div>
-        <div className="tick-label">MCP endpoint (Streamable HTTP)</div>
-        <div className="mt-1.5 flex items-center gap-3">
-          <code className="font-mono text-sm text-fg">{endpoint}</code>
-          <button type="button" className="font-mono text-xs text-stamp hover:underline" onClick={() => copy("url", endpoint)}>
-            {copied === "url" ? "Copied" : "Copy"}
-          </button>
-        </div>
+    <div>
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+        <span className="text-[14px] font-semibold text-fg">{label}</span>
+        {hint && <span className="text-[12.5px] text-muted">{hint}</span>}
       </div>
-      <div>
-        <div className="tick-label">Bearer key</div>
-        <div className="mt-1.5 flex flex-wrap items-center gap-3">
-          <code className="font-mono text-sm text-fg">{show ? apiKey : masked}</code>
-          <button type="button" className="font-mono text-xs text-stamp hover:underline" onClick={() => setShow(!show)}>
-            {show ? "Hide" : "Reveal"}
-          </button>
-          <button type="button" className="font-mono text-xs text-stamp hover:underline" onClick={() => copy("key", apiKey)}>
-            {copied === "key" ? "Copied" : "Copy"}
-          </button>
-        </div>
+      <div className="mt-2 flex h-12 items-center gap-2 rounded-[12px] border border-rule bg-panel-2 pl-4 pr-2">{children}</div>
+    </div>
+  );
+}
+
+export function AgentAccess({ endpoint, apiKey, importerName }: { endpoint: string; apiKey: string; importerName: string }) {
+  const [show, setShow] = useState(false);
+  const masked = apiKey ? `${apiKey.slice(0, 6)}${"•".repeat(14)}${apiKey.slice(-4)}` : "No key yet";
+  return (
+    <div className="panel overflow-hidden">
+      <div className="space-y-5 p-6 sm:p-7">
+        <Field label="MCP endpoint" hint="Streamable HTTP">
+          <code className="min-w-0 flex-1 truncate font-mono text-[13.5px] text-fg">{endpoint}</code>
+          <CopyButton text={endpoint} />
+        </Field>
+        <Field label="API key" hint={`Scoped to ${importerName}`}>
+          <code className="min-w-0 flex-1 truncate font-mono text-[13.5px] text-fg" data-private>
+            {show ? apiKey : masked}
+          </code>
+          {apiKey && (
+            <button type="button" className={pillButton} onClick={() => setShow(!show)} aria-pressed={show}>
+              {show ? "Hide" : "Show"}
+            </button>
+          )}
+          <CopyButton text={apiKey} />
+        </Field>
+        <p className="text-[13.5px] leading-relaxed text-muted">
+          Anyone with this key can get quotes and book inside your spending limit. Treat it like a password.
+        </p>
       </div>
-      <pre className="overflow-x-auto rounded-[12px] border border-rule bg-panel-2 p-4 font-mono text-[12.5px] leading-5 text-muted">{config}</pre>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-rule bg-panel-2 px-6 py-3.5 sm:px-7">
+        <p className="text-[13.5px] text-muted">Works with Claude, Cursor, VS Code and any MCP client.</p>
+        <Link href="/connect" className="btn-ghost h-10 px-4 py-0 text-[14px]">
+          Connect an agent
+          <ArrowRightIcon className="h-3.5 w-3.5" />
+        </Link>
+      </div>
     </div>
   );
 }

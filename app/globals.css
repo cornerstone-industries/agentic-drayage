@@ -110,6 +110,57 @@
   .btn-ghost {
     @apply inline-flex items-center justify-center gap-2 rounded-full border border-rule bg-sheet px-5 py-2.5 text-[15px] font-semibold text-fg transition-colors hover:border-steel disabled:cursor-not-allowed disabled:opacity-40;
   }
+  /* Spending limit band in Settings: the native range input does the dragging and arrow keys, this draws its handle.
+     The handle is 14px wide (THUMB in guardrails-form.tsx) and as tall as the band (h-11). */
+  .limit-range {
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+    cursor: pointer;
+    margin: 0;
+  }
+  .limit-range:focus-visible {
+    outline: none;
+  }
+  .limit-range::-webkit-slider-runnable-track {
+    height: 44px;
+    background: transparent;
+  }
+  .limit-range::-moz-range-track {
+    height: 44px;
+    background: transparent;
+  }
+  .limit-range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    box-sizing: border-box;
+    width: 14px;
+    height: 44px;
+    border-radius: 7px;
+    background: rgb(var(--text-rgb));
+    border: 3px solid rgb(var(--sheet-rgb));
+    box-shadow: 0 1px 4px rgba(18, 20, 23, 0.3);
+    cursor: grab;
+  }
+  .limit-range::-moz-range-thumb {
+    box-sizing: border-box;
+    width: 14px;
+    height: 44px;
+    border-radius: 7px;
+    background: rgb(var(--text-rgb));
+    border: 3px solid rgb(var(--sheet-rgb));
+    box-shadow: 0 1px 4px rgba(18, 20, 23, 0.3);
+    cursor: grab;
+  }
+  .limit-range:active::-webkit-slider-thumb {
+    cursor: grabbing;
+  }
+  .limit-range:focus-visible::-webkit-slider-thumb {
+    box-shadow: 0 0 0 3px rgb(var(--stamp-rgb) / 0.45);
+  }
+  .limit-range:focus-visible::-moz-range-thumb {
+    box-shadow: 0 0 0 3px rgb(var(--stamp-rgb) / 0.45);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
