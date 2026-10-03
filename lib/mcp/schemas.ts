@@ -139,6 +139,7 @@ export const listContainersInput = z.object({
   status: z.enum(CONTAINER_STATUSES).optional().describe("Only return containers in this status."),
 });
 export const listContainersOutput = z.object({
+  say: z.string().describe("A short status written for the user. Relay it as is or in your own words; never paste the JSON."),
   importer_name: z.string(),
   today: z.string().describe("Today's date in port time (YYYY-MM-DD)."),
   count: z.number(),
@@ -149,6 +150,7 @@ export const listContainersOutput = z.object({
 // request_quotes
 export const requestQuotesInput = z.object({ container_id: containerRef });
 export const requestQuotesOutput = z.object({
+  say: z.string().describe("A short status written for the user. Relay it as is or in your own words; never paste the JSON."),
   quote_request_id: z.string(),
   mode: z.enum(["live", "replay", "web"]).describe("replay means recorded dispatcher scripts, not live phone calls; web means carriers answer a browser voice call instead of a phone call."),
   reused: z.boolean().describe("True when a quote request was already in flight and no new calls were placed."),
@@ -159,8 +161,18 @@ export const requestQuotesOutput = z.object({
 });
 
 // get_quotes
-export const getQuotesInput = z.object({ container_id: containerRef });
+export const getQuotesInput = z.object({
+  container_id: containerRef,
+  wait_seconds: z
+    .number()
+    .int()
+    .min(0)
+    .max(25)
+    .optional()
+    .describe("While calls are running, wait up to this many seconds for news (a price heard, a call ending, the ranking) before answering. Use 20 so each answer has something new."),
+});
 export const getQuotesOutput = z.object({
+  say: z.string().describe("A short status written for the user. Relay it as is or in your own words; never paste the JSON."),
   container: containerViewSchema,
   auto_book_limit_cents: z.number(),
   auto_book_limit_usd: z.string(),
@@ -179,6 +191,7 @@ export const bookQuoteInput = z.object({
   quote_id: z.string().describe("A quote_id from get_quotes. The recommended winner is recommendation.winner_quote_id."),
 });
 export const bookQuoteOutput = z.object({
+  say: z.string().describe("A short status written for the user. Relay it as is or in your own words; never paste the JSON."),
   already_booked: z.boolean().describe("True when this quote was already booked and nothing new was charged."),
   booking: bookingViewSchema,
   container: containerViewSchema,
@@ -193,6 +206,7 @@ export const bookQuoteOutput = z.object({
 // get_container_status
 export const getContainerStatusInput = z.object({ container_id: containerRef });
 export const getContainerStatusOutput = z.object({
+  say: z.string().describe("A short status written for the user. Relay it as is or in your own words; never paste the JSON."),
   container: containerViewSchema,
   quote_request: quoteRequestViewSchema.nullable(),
   booking: bookingViewSchema.nullable(),

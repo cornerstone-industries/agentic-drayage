@@ -32,6 +32,7 @@ import {
   type QuoteView,
   type RecommendationView,
 } from "./schemas";
+import { sayBooking, sayContainers, sayQuotes, sayRequest, sayStatus, type Contacts } from "./narrate";
 
 type McpCtx = { http?: { authInfo?: { extra?: Record<string, unknown> } } };
 
@@ -68,9 +69,12 @@ function failure(err: unknown) {
   return errorResult(`PortCall hit an unexpected error: ${err instanceof Error ? err.message : String(err)}`);
 }
 
-// Both the JSON text and structuredContent are returned: many clients only show the model `content`.
+// The plain-language `say` comes first so chat apps lead with it; the JSON follows for the model, plus
+// structuredContent for clients that read it.
 function success(data: Record<string, unknown>) {
-  return { content: [{ type: "text" as const, text: JSON.stringify(data) }], structuredContent: data };
+  const content = [{ type: "text" as const, text: JSON.stringify(data) }];
+  if (typeof data.say === "string") content.unshift({ type: "text" as const, text: data.say });
+  return { content, structuredContent: data };
 }
 
 function importerIdOf(ctx: McpCtx): string {
@@ -297,6 +301,32 @@ async function providerNames(db: AdminClient, importerId: string): Promise<Map<s
   return new Map(rows.map((p) => [p.id, p.name]));
 }
 
+async function providerContacts(db: AdminClient, importerId: string): Promise<Contacts> {
+  const rows = many(await db.from("providers").select("id, contact_name").eq("importer_id", importerId), "providers lookup");
+  return new Map(rows.map((p) => [p.id, p.contact_name]));
+}
+
+const sleepMs = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+/** Long poll for get_quotes: returns as soon as a call changes state, a price is heard, or the ranking lands. */
+async function waitForNews(db: AdminClient, quoteRequestId: string, seconds: number): Promise<void> {
+  const snapshot = async () => {
+    const calls = many(await db.from("calls").select("id, status").eq("quote_request_id", quoteRequestId), "calls lookup");
+    const ids = calls.map((c) => c.id);
+    const [quotes, recs] = await Promise.all([
+      ids.length ? db.from("quotes").select("call_id, updated_at").in("call_id", ids).then((r) => many(r, "quotes lookup")) : Promise.resolve([]),
+      db.from("recommendations").select("id").eq("quote_request_id", quoteRequestId).then((r) => many(r, "recommendation lookup")),
+    ]);
+    return JSON.stringify([calls.map((c) => `${c.id}:${c.status}`).sort(), quotes.map((q) => `${q.call_id}:${q.updated_at}`).sort(), recs.length]);
+  };
+  const start = await snapshot();
+  const deadline = Date.now() + seconds * 1000;
+  while (Date.now() < deadline) {
+    await sleepMs(1500);
+    if ((await snapshot()) !== start) return;
+  }
+}
+
 async function latestQuoteRequest(db: AdminClient, containerId: string): Promise<QuoteRequest | null> {
   return maybe(
     await db.from("quote_requests").select("*").eq("container_id", containerId).order("created_at", { ascending: false }).limit(1).maybeSingle(),
@@ -395,8 +425,10 @@ export function registerPortCallTools(server: McpServer): void {
       const containers = many(rows, "containers lookup")
         .sort((a, b) => active(a) - active(b) || (a.eta ?? "9999").localeCompare(b.eta ?? "9999"))
         .map((c) => toContainerView(c, today));
+      const importerName = maybe(importer, "importer lookup")?.name ?? "Importer";
       return {
-        importer_name: maybe(importer, "importer lookup")?.name ?? "Importer",
+        say: sayContainers(importerName, containers),
+        importer_name: importerName,
         today,
         count: containers.length,
         containers,
@@ -415,7 +447,7 @@ export function registerPortCallTools(server: McpServer): void {
         "Start phone calls to the importer's drayage providers to get quotes for one container. PortCall's AI voice agent calls every provider that serves the lane, in parallel, " +
         "and takes about 1 to 3 minutes. Returns the quote_request_id, which providers are being called, and which were skipped and why. " +
         "Safe to call twice: if a request is already in flight for this container it is reused and nobody is called again. " +
-        "Containers that are already booked or further along cannot be re-quoted. After calling this, poll get_quotes every 5 to 10 seconds.",
+        "Containers that are already booked or further along cannot be re-quoted. After calling this, tell the user who is being called (the say field), then call get_quotes with wait_seconds: 20 until it returns a recommendation.",
       inputSchema: requestQuotesInput,
       outputSchema: requestQuotesOutput,
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
@@ -434,11 +466,14 @@ export function registerPortCallTools(server: McpServer): void {
       } else {
         parts.push("Calls take about 1 to 3 minutes. Call get_quotes with the same container_id every 5 to 10 seconds until it returns a recommendation, then call book_quote.");
       }
+      const contacts = await providerContacts(db, importerId);
+      const containerView = toContainerView(fresh, todayPortDate());
       return {
+        say: sayRequest({ container: containerView, calls, skipped: started.skipped.map((s) => ({ provider_name: s.providerName, reason: s.reason })), contacts, mode: started.mode, reused: started.reused }),
         quote_request_id: started.quoteRequestId,
         mode: started.mode,
         reused: started.reused,
-        container: toContainerView(fresh, todayPortDate()),
+        container: containerView,
         calls,
         skipped: started.skipped.map((s) => ({ provider_id: s.providerId, provider_name: s.providerName, reason: s.reason })),
         next_step: parts.join(" "),
@@ -456,20 +491,27 @@ export function registerPortCallTools(server: McpServer): void {
         "then Claude's ranked recommendation with its reasoning once every call has ended, and the booking if one exists. " +
         "Quotes fill in live while calls are running, so fields may be null at first (see missing_fields). All money is integer cents plus a formatted dollar string. " +
         "Cheapest is not always best: quotes are ranked on risk-adjusted cost (all-in plus estimated demurrage if pickup is after the last free day). " +
-        "Read next_step: it says whether to keep polling, book, or stop.",
+        "Read next_step: it says whether to keep polling, book, or stop. While calls are running pass wait_seconds: 20 so each answer brings news, and relay `say` to the user each time.",
       inputSchema: getQuotesInput,
       outputSchema: getQuotesOutput,
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
-    tool<z.infer<typeof getQuotesInput>>(async ({ container_id }, importerId, db) => {
+    tool<z.infer<typeof getQuotesInput>>(async ({ container_id, wait_seconds }, importerId, db) => {
       const today = todayPortDate();
-      const [container, names, importerRes] = await Promise.all([
+      const [found, names, contacts, importerRes] = await Promise.all([
         resolveContainer(db, importerId, container_id),
         providerNames(db, importerId),
+        providerContacts(db, importerId),
         db.from("importers").select("auto_book_limit_cents").eq("id", importerId).single(),
       ]);
       const limitCents = one(importerRes, "importer lookup").auto_book_limit_cents;
-      const qr = await latestQuoteRequest(db, container.id);
+      let container = found;
+      let qr = await latestQuoteRequest(db, container.id);
+      if (wait_seconds && qr?.status === "calling") {
+        await waitForNews(db, qr.id, Math.min(25, wait_seconds));
+        container = await resolveContainer(db, importerId, container.id);
+        qr = await latestQuoteRequest(db, container.id);
+      }
 
       const callRows = qr ? many(await db.from("calls").select("*").eq("quote_request_id", qr.id), "calls lookup") : [];
       const callIds = callRows.map((c) => c.id);
@@ -512,11 +554,30 @@ export function registerPortCallTools(server: McpServer): void {
         }))
         .sort((a, b) => a.provider_name.localeCompare(b.provider_name));
 
+      // The dispatcher's own words: the newest transcript line that supplied a field on each call.
+      const newestSource = new Map<string, number>();
+      for (const q of quoteRows) {
+        const fs = q.field_sources && typeof q.field_sources === "object" && !Array.isArray(q.field_sources) ? Object.values(q.field_sources) : [];
+        const ids = fs.map((v) => Number(v)).filter((n) => Number.isFinite(n));
+        if (q.call_id && ids.length) newestSource.set(q.call_id, Math.max(...ids));
+      }
+      const lineRows = newestSource.size
+        ? many(await db.from("transcript_lines").select("id, text").in("id", [...newestSource.values()]), "transcript lookup")
+        : [];
+      const textById = new Map(lineRows.map((l) => [l.id, l.text.length > 160 ? `${l.text.slice(0, 157)}...` : l.text]));
+      const saidByCall = new Map<string, string>();
+      for (const [callId, id] of newestSource) {
+        const text = textById.get(id);
+        if (text) saidByCall.set(callId, text);
+      }
+
       const recommendation = recRow ? toRecommendationView(recRow, quotes) : null;
       const booking = bookingRow ? toBookingView(bookingRow, bookingRow.provider_id ? names.get(bookingRow.provider_id) ?? null : null) : null;
       const perDay = demurragePerDayCents();
+      const containerView = toContainerView(container, today);
       return {
-        container: toContainerView(container, today),
+        say: sayQuotes({ container: containerView, calls, quotes, recommendation, booking, contacts, saidByCall, limitCents, runStatus: qr?.status ?? null }),
+        container: containerView,
         auto_book_limit_cents: limitCents,
         auto_book_limit_usd: money(limitCents),
         demurrage_per_day_cents: perDay,
@@ -550,18 +611,21 @@ export function registerPortCallTools(server: McpServer): void {
       const result = await bookQuote({ quoteId, importerId, bookedBy: "agent" });
       const { booking } = result;
       const [providerRes, containerRes] = await Promise.all([
-        booking.provider_id ? db.from("providers").select("name").eq("id", booking.provider_id).maybeSingle() : Promise.resolve({ data: null, error: null }),
+        booking.provider_id ? db.from("providers").select("name, contact_name").eq("id", booking.provider_id).maybeSingle() : Promise.resolve({ data: null, error: null }),
         booking.container_id ? db.from("containers").select("*").eq("id", booking.container_id).maybeSingle() : Promise.resolve({ data: null, error: null }),
       ]);
       const container = maybe(containerRes, "container lookup");
       if (!container) throw new Error("Booked, but the container could not be read back.");
-      const providerName = maybe(providerRes, "provider lookup")?.name ?? null;
+      const provider = maybe(providerRes, "provider lookup");
+      const providerName = provider?.name ?? null;
       const bookingView = toBookingView(booking, providerName);
       const authorized = booking.payment_status === "authorized";
+      const containerView = toContainerView(container, todayPortDate());
       return {
+        say: sayBooking(bookingView, containerView, provider?.contact_name, result.alreadyBooked),
         already_booked: result.alreadyBooked,
         booking: bookingView,
-        container: toContainerView(container, todayPortDate()),
+        container: containerView,
         payment: {
           payment_status: booking.payment_status,
           stripe_status: result.paymentIntentStatus,
@@ -603,11 +667,15 @@ export function registerPortCallTools(server: McpServer): void {
           .then((r) => many(r, "events lookup")),
       ]);
       const booking = bookingRow ? toBookingView(bookingRow, bookingRow.provider_id ? names.get(bookingRow.provider_id) ?? null : null) : null;
+      const events = eventRows.reverse().map(toEventView);
+      const containerView = toContainerView(container, todayPortDate());
+      const contact = bookingRow?.provider_id ? (await providerContacts(db, importerId)).get(bookingRow.provider_id) : null;
       return {
-        container: toContainerView(container, todayPortDate()),
+        say: sayStatus(containerView, booking, events, contact),
+        container: containerView,
         quote_request: qr ? toQuoteRequestView(qr) : null,
         booking,
-        events: eventRows.reverse().map(toEventView),
+        events,
         next_step: statusNextStep(container, booking),
       } satisfies z.infer<typeof getContainerStatusOutput>;
     }),

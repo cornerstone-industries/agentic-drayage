@@ -17,7 +17,10 @@ const handler = createMcpHandler(registerPortCallTools, {
     "Claude ranks the quotes on risk-adjusted cost (all-in rate plus demurrage if pickup is after the last free day), and you can book the winner. " +
     "Workflow: list_containers, then request_quotes for the container, then poll get_quotes every 5 to 10 seconds until it returns a recommendation " +
     "(about 1 to 3 minutes), then book_quote with the winner's quote_id, then get_container_status to follow acceptance, pickup and delivery. " +
-    "Every response carries a next_step hint. Quotes above the importer's auto-book limit need human approval: do not retry those.",
+    "Every response carries a next_step hint. Quotes above the importer's auto-book limit need human approval: do not retry those. " +
+    "Talk to the user like a sharp freight coordinator: every response has a `say` field written for them. Relay it briefly (as is or in your own words), " +
+    "quote the carriers when it quotes them, lead with the decision when the ranking lands, and spell out the payment (card held, payout, fee). Never paste raw JSON. " +
+    "While calls are running, call get_quotes with wait_seconds: 20 so each update brings something new.",
 });
 
 // The key is the importer's own; it is only used to find which importer is calling.
