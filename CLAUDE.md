@@ -9,7 +9,7 @@ Read this whole file before writing code. It is the source of truth for scope, d
 ## Build status (updated Oct 3, 1:15 PM PT)
 
 - Supabase project **portcall** in the Cornerstone org, ref `apbvdeghnqrvagjdscog` (us-east-1). Migrations in `supabase/migrations` are applied there (schema + RLS + Realtime, pg_cron auto-quote job, RLS helpers in a private schema). Supabase Realtime drives every live surface.
-- Everything is built; only keys are missing. `KEYS_TODO.md` is the runbook: each key, where to get it, the env var, and the exact command to run after adding it.
+- Everything is built; only keys are missing. Start with `HANDOFF.md` (who takes what), then `KEYS_TODO.md`, the runbook: each key, where to get it, the env var, and the exact command to run after adding it.
 - Verified against a local Supabase stack with the DEV ONLY fixture AI: `npm run build`, `npm run lint`, `npx tsc --noEmit`, `npm run test:replay` (all PASS) and `npm run test:mcp` (all PASS except `book_quote`, which needs Stripe keys).
 - Current API facts that differ from this doc: AI SDK 7 prefers `generateText({ output: Output.object(...) })` (generateObject is deprecated); gateway slugs are `anthropic/claude-haiku-4.5` (extraction) and `anthropic/claude-sonnet-5.5` (ranking); `mcp-handler` 2.x uses `server.registerTool` and Streamable HTTP only; Vapi's webhook config is `server: { url, headers }` (no `serverUrl`), `transcript` must be listed in `serverMessages`, POST /call has no top-level `metadata`, and free Vapi numbers cannot dial out (import a Twilio number).
 

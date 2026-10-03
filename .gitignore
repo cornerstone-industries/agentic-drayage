@@ -40,3 +40,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local review screenshots (npm run shots); commit the final submission set on purpose
+screenshots/
