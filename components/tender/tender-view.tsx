@@ -79,15 +79,15 @@ export function TenderView({ data }: { data: TenderData }) {
     <main className="mx-auto min-h-dvh max-w-[440px] px-4 pb-10 pt-5" data-testid="tender-page">
       <div className="flex items-center justify-between">
         <Wordmark href="/" />
-        <span className="font-mono text-[10.5px] text-muted">Load tender</span>
+        <span className="text-[13px] font-semibold text-muted">Load tender</span>
       </div>
 
       <section className="mt-6">
-        <p className="font-mono text-[11px] text-muted">
+        <p className="text-[14px] text-muted">
           For {data.providerName}
           {data.contactName ? `, attn ${data.contactName}` : ""}
         </p>
-        <h1 className="stencil mt-2 text-[34px] leading-none text-fg">{formatContainerNumber(c.number)}</h1>
+        <h1 className="stencil mt-2 text-[44px] leading-none text-fg">{formatContainerNumber(c.number)}</h1>
         <p className="mt-3 text-[15px] text-fg">
           {c.size} at {c.terminal}
           <span className="text-muted"> to </span>
@@ -96,18 +96,18 @@ export function TenderView({ data }: { data: TenderData }) {
         </p>
       </section>
 
-      <section className="panel relative mt-5 overflow-hidden rounded-[6px] p-4">
+      <section className="panel relative mt-5 overflow-hidden p-5">
         <div className="flex items-start justify-between">
           <div>
-            <div className="font-mono text-[11px] text-muted">Agreed rate, all-in</div>
-            <div className="mt-1 font-mono text-[34px] font-semibold leading-none text-sodium">{formatUsd(data.amountCents)}</div>
+            <div className="text-[13px] text-muted">Agreed rate, all-in</div>
+            <div className="mt-1 font-mono text-[40px] font-semibold leading-none text-fg">{formatUsd(data.amountCents)}</div>
           </div>
           <div className="pt-1">
             <PaymentStamp status={data.paymentStatus === "captured" ? "captured" : declined ? "canceled" : null} />
           </div>
         </div>
         {q && (
-          <dl className="mt-4 space-y-1.5 border-t border-line pt-3 font-mono text-[12.5px]">
+          <dl className="mt-4 space-y-2 border-t border-line pt-3 text-[14.5px]">
             <Row k="Linehaul" v={formatUsd(q.linehaul)} />
             <Row k="Fuel" v={q.fuel ? formatUsd(q.fuel) : "Included"} />
             <Row k="Chassis" v={chassisTotal ? `${formatUsd(q.chassisPerDay)}/day x ${q.chassisDays}` : "Included"} />
@@ -118,7 +118,7 @@ export function TenderView({ data }: { data: TenderData }) {
         )}
       </section>
 
-      <section className="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-[6px] border border-line bg-line font-mono text-[12px]">
+      <section className="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-[16px] border border-line bg-line text-[14px]">
         <Cell k="Available" v={c.eta ? shortDate(portDate(c.eta)) : "--"} />
         <Cell k="Last free day" v={shortDate(c.lastFreeDay)} tone="text-alarm" />
         <Cell k="Your pickup" v={shortDate(q?.earliestPickup)} />
@@ -132,7 +132,7 @@ export function TenderView({ data }: { data: TenderData }) {
 
       <section className="mt-6">
         {declined ? (
-          <p className="rounded-[4px] border border-alarm/40 bg-alarm/10 p-4 text-sm text-alarm">You declined this load. The card hold was released.</p>
+          <p className="rounded-[14px] border border-red/30 bg-red/5 p-4 text-[15px] text-red">You declined this load. The card hold was released.</p>
         ) : !accepted ? (
           <div className="grid gap-3">
             <button type="button" className="btn-sodium w-full !py-4 !text-base" onClick={() => act("accept")} disabled={!!pending} data-testid="tender-accept">
@@ -157,7 +157,7 @@ export function TenderView({ data }: { data: TenderData }) {
                     animate={{ backgroundColor: on ? "var(--signal)" : "var(--line)" }}
                     style={{ boxShadow: on ? "0 0 8px var(--signal)" : undefined }}
                   />
-                  <span className={`font-mono text-[11px] ${on ? "text-fg" : "text-dim"}`}>{label as string}</span>
+                  <span className={`text-[13px] font-semibold ${on ? "text-fg" : "text-dim"}`}>{label as string}</span>
                 </li>
               ))}
             </ol>
@@ -171,17 +171,17 @@ export function TenderView({ data }: { data: TenderData }) {
                   {pending === "delivered" ? "Capturing payment..." : "Mark delivered"}
                 </button>
               ) : (
-                <p className="rounded-[4px] border border-signal/40 bg-signal/10 p-4 text-sm text-signal">
+                <p className="rounded-[14px] border border-live/30 bg-live/5 p-4 text-[15px] text-live">
                   Delivered. {formatUsd(data.amountCents)} is captured and on its way to your Stripe account.
                 </p>
               )}
             </div>
           </div>
         )}
-        {error && <p className="mt-3 rounded-[4px] border border-alarm/40 bg-alarm/10 p-3 font-mono text-xs text-alarm">{error}</p>}
+        {error && <p className="mt-3 rounded-[14px] border border-red/30 bg-red/5 p-3 text-[14px] text-red">{error}</p>}
       </section>
 
-      <p className="mt-8 font-mono text-[10.5px] leading-5 text-dim">
+      <p className="mt-8 text-[13px] leading-relaxed text-muted">
         Tendered by PortCall for {data.importerName}. Accept works as an EDI 990, the status buttons as 214s. Payment is authorized now and
         captured on delivery through Stripe Connect (test mode).
       </p>
@@ -193,7 +193,7 @@ function Row({ k, v }: { k: string; v: string }) {
   return (
     <div className="flex justify-between gap-4">
       <dt className="text-muted">{k}</dt>
-      <dd className="text-fg">{v}</dd>
+      <dd className="font-mono text-fg">{v}</dd>
     </div>
   );
 }
@@ -202,7 +202,7 @@ function Cell({ k, v, tone = "text-fg" }: { k: string; v: string; tone?: string 
   return (
     <div className="bg-panel p-3">
       <div className="text-muted">{k}</div>
-      <div className={`mt-1 ${tone}`}>{v}</div>
+      <div className={`mt-1 font-semibold ${tone}`}>{v}</div>
     </div>
   );
 }

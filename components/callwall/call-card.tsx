@@ -1,11 +1,12 @@
 "use client";
 
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Odometer } from "@/components/freight/odometer";
+import { RubberStamp } from "@/components/freight/rubber-stamp";
 import { formatUsd } from "@/lib/money";
-import { SplitFlap } from "@/components/freight/split-flap";
 import { StatusPill } from "./status-pill";
-import { Waveform } from "./waveform";
+import { VoiceTrace } from "./voice-trace";
 import { FIELD_ROWS, displayField, fieldLabel } from "./fields";
 import type { QuoteField } from "@/lib/ai/types";
 import type { Call, Provider, Quote, TranscriptLine } from "@/lib/types";
@@ -22,7 +23,9 @@ type Props = {
   reasons?: string[];
 };
 
-const TONE: Record<string, string> = { fg: "text-fg", signal: "text-signal", alarm: "text-alarm", muted: "text-muted" };
+// Carbon-copy colors of a 3-part form: white, canary, pink. Used as the ticket's tab.
+const COPY_TAB = ["#121417", "#F2C230", "#EE86A4"];
+const TONE: Record<string, string> = { fg: "text-fg", signal: "text-live", alarm: "text-red", muted: "text-muted" };
 
 function useCallClock(call: Call | null) {
   const [now, setNow] = useState(() => Date.now());
@@ -32,15 +35,41 @@ function useCallClock(call: Call | null) {
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
   }, [live]);
-  if (!call?.started_at) return "00:00";
+  if (!call?.started_at) return "0:00";
   const end = call.ended_at ? new Date(call.ended_at).getTime() : now;
   const s = Math.max(0, Math.floor((end - new Date(call.started_at).getTime()) / 1000));
-  return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
 
 /** The source line for a displayed row (chassis rows can come from the days line). */
 function sourceFor(key: QuoteField, sources: Record<string, number>): number | null {
-  return sources[key] ?? (key === "chassis_per_day_cents" ? sources.est_chassis_days ?? null : null);
+  return sources[key] ?? (key === "chassis_per_day_cents" ? (sources.est_chassis_days ?? null) : null);
+}
+
+/** Types a line out like a teleprinter, only for lines that arrive while you watch. */
+function Typed({ text, animate }: { text: string; animate: boolean }) {
+  const reduce = useReducedMotion();
+  const [n, setN] = useState(animate && !reduce ? 0 : text.length);
+  useEffect(() => {
+    if (!animate || reduce) return;
+    const total = text.length;
+    const duration = Math.min(1300, Math.max(320, total * 15));
+    const start = performance.now();
+    let raf = 0;
+    const tick = (now: number) => {
+      const k = Math.min(1, (now - start) / duration);
+      setN(Math.ceil(k * total));
+      if (k < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [text, animate, reduce]);
+  return (
+    <>
+      {text.slice(0, n)}
+      {n < text.length && <span className="ml-px inline-block h-[0.95em] w-[2px] translate-y-[2px] animate-blink bg-fg" />}
+    </>
+  );
 }
 
 export function CallCard({ channel, provider, call, lines, quote, lastFreeDay, rank, isWinner, reasons }: Props) {
@@ -48,8 +77,12 @@ export function CallCard({ channel, provider, call, lines, quote, lastFreeDay, r
   const live = status === "in_progress";
   const clock = useCallClock(call);
   const sources = (quote?.field_sources ?? {}) as Record<string, number>;
+  const speaking = (call?.speaking as "assistant" | "user" | null) ?? null;
 
-  // Which fields just got heard: they stamp in, and their source line lights up with a connector.
+  // Lines already on screen when this ticket mounted are shown whole; new ones type out.
+  const [seenAtMount] = useState(() => new Set(lines.map((l) => l.id)));
+
+  // Which fields were just heard: they stamp in, their line gets highlighted, a pencil line connects them.
   const prev = useRef<Map<QuoteField, string> | null>(null);
   const [fresh, setFresh] = useState<{ fields: QuoteField[]; at: number } | null>(null);
   useEffect(() => {
@@ -62,246 +95,267 @@ export function CallCard({ channel, provider, call, lines, quote, lastFreeDay, r
     }
     if (prev.current) {
       const changed = [...current.entries()].filter(([k, v]) => prev.current!.get(k) !== v).map(([k]) => k);
-      if (changed.length) setFresh({ fields: changed, at: Date.now() });
+      if (changed.length) {
+        const t = setTimeout(() => setFresh({ fields: changed, at: Date.now() }), 0);
+        prev.current = current;
+        return () => clearTimeout(t);
+      }
     }
     prev.current = current;
   }, [quote, lastFreeDay]);
   useEffect(() => {
     if (!fresh) return;
-    const t = setTimeout(() => setFresh(null), 1700);
+    const t = setTimeout(() => setFresh(null), 1900);
     return () => clearTimeout(t);
   }, [fresh]);
-  const freshLines = new Set((fresh?.fields ?? []).map((f) => sourceFor(f, sources)).filter((x): x is number => x != null));
 
-  // Transcript ticker keeps the newest line in view.
-  const ticker = useRef<HTMLDivElement>(null);
+  // Transcript keeps the newest line in view (and re-pins after a re-sort moves the ticket).
+  const tape = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    const el = ticker.current;
+    const el = tape.current;
     if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
-    // rank: moving a card in the DOM resets its scroll, so pin the newest line again after a re-sort
   }, [lines.length, rank]);
 
-  // Connector glow from each freshly stamped field back to the line it came from.
+  // Pencil connector from each freshly stamped field back to the words it came from.
   const card = useRef<HTMLDivElement>(null);
   const fieldEls = useRef(new Map<QuoteField, HTMLElement>());
   const lineEls = useRef(new Map<number, HTMLElement>());
-  const [paths, setPaths] = useState<{ d: string; key: string }[]>([]);
+  const [paths, setPaths] = useState<{ d: string; key: string; end: [number, number] }[]>([]);
   useLayoutEffect(() => {
-    if (!fresh || !card.current) {
-      setPaths([]);
-      return;
+    const box = card.current?.getBoundingClientRect();
+    const tapeBox = tape.current?.getBoundingClientRect();
+    const out: { d: string; key: string; end: [number, number] }[] = [];
+    if (fresh && box) {
+      for (const f of fresh.fields) {
+        const src = sourceFor(f, sources);
+        const fe = fieldEls.current.get(f);
+        const le = src != null ? lineEls.current.get(src) : undefined;
+        if (!fe || !le) continue;
+        const fr = fe.getBoundingClientRect();
+        const lr = le.getBoundingClientRect();
+        const fx = fr.left - box.left + 2;
+        const fy = fr.top - box.top + fr.height / 2;
+        const lx = lr.left - box.left + 2;
+        let ly = lr.top - box.top + Math.min(lr.height / 2, 11);
+        if (tapeBox) ly = Math.min(Math.max(ly, tapeBox.top - box.top + 8), tapeBox.bottom - box.top - 8);
+        const bend = Math.max(18, Math.min(46, Math.abs(fy - ly) / 3.5));
+        out.push({ d: `M ${fx} ${fy} C ${fx - bend} ${fy}, ${lx - bend} ${ly}, ${lx} ${ly}`, key: `${f}-${fresh.at}`, end: [lx, ly] });
+      }
     }
-    const box = card.current.getBoundingClientRect();
-    const tick = ticker.current?.getBoundingClientRect();
-    const out: { d: string; key: string }[] = [];
-    for (const f of fresh.fields) {
-      const src = sourceFor(f, sources);
-      const fe = fieldEls.current.get(f);
-      const le = src != null ? lineEls.current.get(src) : undefined;
-      if (!fe || !le) continue;
-      const fr = fe.getBoundingClientRect();
-      const lr = le.getBoundingClientRect();
-      const fx = fr.left - box.left + 6;
-      const fy = fr.top - box.top + fr.height / 2;
-      const lx = lr.left - box.left + 4;
-      let ly = lr.top - box.top + Math.min(lr.height / 2, 10);
-      if (tick) ly = Math.min(Math.max(ly, tick.top - box.top + 6), tick.bottom - box.top - 6);
-      const bend = Math.max(14, Math.min(40, Math.abs(fy - ly) / 4));
-      out.push({ d: `M ${fx} ${fy} C ${fx - bend} ${fy}, ${lx - bend} ${ly}, ${lx} ${ly}`, key: `${f}-${fresh.at}` });
-    }
-    setPaths(out);
-    // sources only change together with fresh
+    const t = setTimeout(() => setPaths(out), 0);
+    return () => clearTimeout(t);
+    // sources change together with fresh
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fresh]);
 
   const allIn = quote?.all_in_cents ?? null;
   const demurrage = quote?.projected_demurrage_cents ?? 0;
+  const freshLines = new Set((fresh?.fields ?? []).map((f) => sourceFor(f, sources)).filter((x): x is number => x != null));
 
   return (
-    <div
-      ref={card}
-      data-testid="call-card"
-      data-status={status}
-      data-provider={provider.name}
-      className={`panel relative flex h-full flex-col overflow-hidden rounded-[4px] transition-shadow duration-500 ${
-        isWinner ? "shadow-[0_0_0_1.5px_var(--sodium),0_0_48px_-6px_rgba(255,176,32,0.45)]" : ""
-      } ${rank && !isWinner ? "opacity-[0.86]" : ""}`}
-    >
-      {/* channel strip */}
-      <div className="flex items-center justify-between border-b border-line px-4 py-2.5">
-        <div className="flex items-center gap-3">
-          <span className="font-mono text-[11px] text-dim">CH {channel}</span>
-          <StatusPill status={status} />
-        </div>
-        <div className="flex items-center gap-3">
-          {rank != null && (
-            <span className={`font-mono text-[11px] ${isWinner ? "text-sodium" : "text-muted"}`}>{isWinner ? "Recommended" : `#${rank}`}</span>
-          )}
-          <span className="font-mono text-xs tabular-nums text-muted">{clock}</span>
-        </div>
-      </div>
+    <div className="relative pt-5" data-testid="call-card" data-status={status} data-provider={provider.name}>
+      {/* clip on the rail */}
+      <svg className="absolute left-1/2 top-[-6px] z-20 -translate-x-1/2" width="54" height="30" viewBox="0 0 54 30" aria-hidden>
+        <rect x="9" y="1" width="36" height="20" rx="4" fill="#2A2F35" />
+        <rect x="12" y="4" width="30" height="6" rx="2" fill="#4A5159" />
+        <path d="M17 21 v7 M37 21 v7" stroke="#2A2F35" strokeWidth="3" strokeLinecap="round" />
+      </svg>
 
-      <div className="px-4 pb-3 pt-4">
-        <h3 className="font-display text-[22px] font-extrabold leading-tight font-semiwide">{provider.name}</h3>
-        <p className="mt-1 font-mono text-[11px] text-muted">
-          {provider.contact_name ?? "Dispatch"}, {provider.phone}
-        </p>
-        <div className="mt-3 flex items-center gap-3 overflow-hidden">
-          <Waveform speaking={(call?.speaking as "assistant" | "user" | null) ?? null} live={live} />
-          <span className="shrink-0 whitespace-nowrap font-mono text-[11px] text-muted">
-            {call?.speaking === "assistant" ? (
-              <span className="text-sodium">PortCall speaking</span>
-            ) : call?.speaking === "user" ? (
-              <span className="text-signal">Dispatcher speaking</span>
-            ) : live ? (
-              "Line open"
-            ) : status === "ringing" ? (
-              "Ringing"
-            ) : status === "standby" ? (
-              "Idle"
-            ) : status === "queued" ? (
-              "Dialing"
-            ) : (
-              "Hung up"
-            )}
+      <div
+        ref={card}
+        className={`relative origin-top overflow-hidden rounded-[18px] border bg-sheet transition-[box-shadow,transform,border-color] duration-500 ${
+          status === "ringing" ? "animate-ring" : ""
+        } ${
+          isWinner
+            ? "-translate-y-1.5 border-fg shadow-[0_2px_0_#121417,0_28px_60px_-28px_rgba(18,20,23,0.55)]"
+            : rank
+              ? "border-rule shadow-[0_10px_30px_-24px_rgba(18,20,23,0.4)]"
+              : "border-rule shadow-[0_14px_40px_-26px_rgba(18,20,23,0.45)]"
+        }`}
+      >
+        <div className="h-1.5" style={{ background: COPY_TAB[(channel - 1) % 3] }} />
+
+        {/* header */}
+        <div className="px-5 pt-4">
+          <div className="flex items-center justify-between">
+            <StatusPill status={status} />
+            <div className="flex items-center gap-3 font-mono text-[12px] text-muted">
+              {rank != null && !isWinner && <span className="rounded-full border border-rule px-2 py-px">#{rank}</span>}
+              <span className="tabular-nums">{clock}</span>
+            </div>
+          </div>
+          <h3 className="mt-3 font-cond text-[26px] font-bold leading-[1.05] tracking-[-0.01em] text-fg">{provider.name}</h3>
+          <p className="mt-1 text-[13px] text-muted">
+            {provider.contact_name ?? "Dispatch"}, {provider.phone}
+          </p>
+        </div>
+
+        {/* voice trace on graph paper */}
+        <div className="mx-5 mt-4 rounded-[10px] border border-rule bg-[linear-gradient(rgba(36,83,214,0.07)_1px,transparent_1px),linear-gradient(90deg,rgba(36,83,214,0.07)_1px,transparent_1px)] bg-[size:12px_12px] px-1">
+          <VoiceTrace speaking={speaking} live={live} />
+        </div>
+        <div className="mx-5 mt-1.5 flex items-center gap-4 text-[12px]">
+          <span className={`inline-flex items-center gap-1.5 ${speaking === "assistant" ? "font-semibold text-stamp" : "text-muted"}`}>
+            <span className="h-1.5 w-3 rounded-full bg-stamp" /> PortCall AI
+          </span>
+          <span className={`inline-flex items-center gap-1.5 ${speaking === "user" ? "font-semibold text-live" : "text-muted"}`}>
+            <span className="h-1.5 w-3 rounded-full bg-live" /> Dispatcher
           </span>
         </div>
-      </div>
 
-      {/* transcript ticker */}
-      <div ref={ticker} className="relative h-[178px] overflow-y-auto border-y border-line bg-ink/60 px-4 py-3 [scrollbar-width:thin]" aria-live="polite">
-        {lines.length === 0 ? (
-          <p className="font-mono text-[11px] leading-5 text-dim">{call ? "Waiting for the first words..." : "Transcript appears here as they talk."}</p>
-        ) : (
-          <ul className="space-y-1.5">
-            {lines.map((l) => {
-              const tagged = Object.entries(sources).filter(([, id]) => id === l.id).map(([k]) => k);
-              const isFresh = freshLines.has(l.id);
-              return (
-                <motion.li
-                  key={l.id}
-                  ref={(el) => {
-                    if (el) lineEls.current.set(l.id, el);
-                    else lineEls.current.delete(l.id);
-                  }}
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.25 }}
-                  className={`relative rounded-[2px] border-l-2 py-0.5 pl-2 pr-1 text-[12.5px] leading-[1.45] transition-colors duration-500 ${
-                    isFresh ? "border-sodium bg-sodium/15" : tagged.length ? "border-signal/50" : "border-transparent"
-                  }`}
-                >
-                  <span className={`mr-1.5 font-mono text-[10px] ${l.role === "assistant" ? "text-sodium/70" : "text-signal/80"}`}>
-                    {l.role === "assistant" ? "AI" : "DSP"}
-                  </span>
-                  <span className={l.role === "assistant" ? "text-muted" : "text-fg"}>{l.text}</span>
-                  {tagged.length > 0 && (
-                    <span className="ml-1.5 whitespace-nowrap font-mono text-[10px] text-signal">[{tagged.map(fieldLabel).join(", ")}]</span>
-                  )}
-                </motion.li>
-              );
-            })}
-          </ul>
-        )}
-      </div>
-
-      {/* quote field stack */}
-      <dl className="flex-1 px-4 py-3">
-        {FIELD_ROWS.map((f) => {
-          const d = quote ? displayField(f.key, quote, lastFreeDay) : null;
-          const isFresh = fresh?.fields.includes(f.key);
-          return (
-            <div
-              key={f.key}
-              ref={(el) => {
-                if (el) fieldEls.current.set(f.key, el);
-                else fieldEls.current.delete(f.key);
-              }}
-              className="relative flex items-baseline justify-between gap-3 border-b border-line/60 py-[7px] last:border-0"
-            >
-              {isFresh && (
-                <motion.span
-                  key={fresh!.at}
-                  className="pointer-events-none absolute inset-x-[-8px] inset-y-0 rounded-[2px] bg-sodium"
-                  initial={{ opacity: 0.5 }}
-                  animate={{ opacity: 0 }}
-                  transition={{ duration: 0.6, ease: "easeOut" }}
-                />
-              )}
-              <dt className="relative flex items-center gap-1.5 text-[13px] text-muted">
-                <span className={`h-1 w-1 rounded-full ${d ? "bg-signal" : "bg-line"}`} />
-                {f.label}
-              </dt>
-              <dd className="relative text-right">
-                <AnimatePresence mode="popLayout" initial={false}>
-                  {d ? (
-                    <motion.span
-                      key={d.text}
-                      className={`inline-block font-mono text-[14px] font-semibold tabular-nums ${TONE[d.tone]}`}
-                      initial={{ scale: 1.9, rotate: -8, opacity: 0 }}
-                      animate={{ scale: 1, rotate: 0, opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      transition={{ type: "spring", stiffness: 520, damping: 20 }}
-                    >
-                      {d.text}
-                    </motion.span>
-                  ) : (
-                    <motion.span key="empty" className="font-mono text-[13px] text-dim" exit={{ opacity: 0 }}>
-                      {call && status !== "ended" ? "listening" : "--"}
-                    </motion.span>
-                  )}
-                </AnimatePresence>
-                {d?.note && <span className="block font-mono text-[10.5px] text-muted">{d.note}</span>}
-              </dd>
-            </div>
-          );
-        })}
-      </dl>
-
-      {/* totals */}
-      <div className="border-t border-line bg-panel-2 px-4 py-3">
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-[13px] text-muted">All-in</span>
-          <SplitFlap value={allIn == null ? "   --   " : formatUsd(allIn).padStart(9, " ")} className="text-[19px]" />
+        {/* transcript */}
+        <div ref={tape} className="relative mt-4 h-[196px] overflow-y-auto border-y border-rule bg-panel-2 px-5 py-3 [scrollbar-width:thin]" aria-live="polite">
+          {lines.length === 0 ? (
+            <p className="pt-1 text-[13px] text-dim">{call ? (status === "ringing" ? "Ringing..." : "Waiting for the first words...") : "The conversation shows up here, word for word."}</p>
+          ) : (
+            <ul className="space-y-2">
+              {lines.map((l) => {
+                const tagged = Object.entries(sources)
+                  .filter(([, id]) => id === l.id)
+                  .map(([k]) => k);
+                const isSource = tagged.length > 0;
+                return (
+                  <motion.li
+                    key={l.id}
+                    ref={(el) => {
+                      if (el) lineEls.current.set(l.id, el);
+                      else lineEls.current.delete(l.id);
+                    }}
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.22 }}
+                    className="grid grid-cols-[52px_1fr] gap-2 text-[13.5px] leading-[1.45]"
+                  >
+                    <span className={`pt-px text-[11px] font-semibold ${l.role === "assistant" ? "text-stamp" : "text-live"}`}>{l.role === "assistant" ? "PortCall" : "Dispatch"}</span>
+                    <span className={l.role === "assistant" ? "text-muted" : "text-fg"}>
+                      <span className="marker rounded-[3px]" data-on={isSource}>
+                        <Typed text={l.text} animate={!seenAtMount.has(l.id)} />
+                      </span>
+                      {isSource && (
+                        <span className={`ml-1.5 whitespace-nowrap rounded-full px-1.5 py-px text-[10.5px] font-semibold ${freshLines.has(l.id) ? "bg-stamp text-white" : "bg-stamp/10 text-stamp"}`}>
+                          {tagged.map(fieldLabel).join(" + ")}
+                        </span>
+                      )}
+                    </span>
+                  </motion.li>
+                );
+              })}
+            </ul>
+          )}
         </div>
-        {demurrage > 0 && (
-          <div className="mt-2 flex items-center justify-between gap-3">
-            <span className="text-[13px] text-alarm">With demurrage</span>
-            <SplitFlap value={formatUsd(quote?.risk_adjusted_cents ?? 0).padStart(9, " ")} className="text-[19px]" tone="text-alarm" />
+
+        {/* the quote, filled in as it is heard */}
+        <dl className="px-5 pb-2 pt-3">
+          {FIELD_ROWS.map((f) => {
+            const d = quote ? displayField(f.key, quote, lastFreeDay) : null;
+            const isFresh = Boolean(fresh?.fields.includes(f.key));
+            return (
+              <div
+                key={f.key}
+                ref={(el) => {
+                  if (el) fieldEls.current.set(f.key, el);
+                  else fieldEls.current.delete(f.key);
+                }}
+                className="relative flex items-baseline gap-2 py-[7px]"
+              >
+                {isFresh && (
+                  <motion.span
+                    key={fresh!.at}
+                    className="pointer-events-none absolute inset-x-[-10px] inset-y-[1px] rounded-[8px] bg-marker/60"
+                    initial={{ opacity: 1 }}
+                    animate={{ opacity: 0 }}
+                    transition={{ duration: 1.1, ease: "easeOut" }}
+                  />
+                )}
+                <dt className="relative shrink-0 text-[13.5px] text-muted">{f.label}</dt>
+                <span className="relative mb-[4px] flex-1 border-b border-dotted border-dim/70" aria-hidden />
+                <dd className="relative text-right">
+                  <AnimatePresence mode="popLayout" initial={false}>
+                    {d ? (
+                      <motion.span
+                        key={d.text}
+                        className={`relative inline-block font-mono text-[15px] font-semibold tabular-nums ${d.tone === "fg" ? "text-stamp" : TONE[d.tone]}`}
+                        initial={{ scale: 1.9, rotate: -10, opacity: 0, y: -6 }}
+                        animate={{ scale: 1, rotate: 0, opacity: 1, y: 0 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ type: "spring", stiffness: 600, damping: 22 }}
+                      >
+                        {isFresh && (
+                          <motion.span
+                            className="absolute inset-[-6px] rounded-full border-2 border-stamp"
+                            initial={{ scale: 0.5, opacity: 0.55 }}
+                            animate={{ scale: 1.5, opacity: 0 }}
+                            transition={{ duration: 0.55, ease: "easeOut" }}
+                          />
+                        )}
+                        {d.text}
+                      </motion.span>
+                    ) : (
+                      <motion.span key="empty" className="text-[13px] text-dim" exit={{ opacity: 0 }}>
+                        {call && status === "in_progress" ? "listening" : "–"}
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                  {d?.note && <span className="block text-[11.5px] text-muted">{d.note}</span>}
+                </dd>
+              </div>
+            );
+          })}
+        </dl>
+
+        {/* totals on a mechanical counter */}
+        <div className="border-t border-rule px-5 pb-5 pt-4">
+          <div className="flex items-end justify-between gap-3">
+            <span className="pb-1 text-[13.5px] font-semibold text-fg">All-in</span>
+            {allIn == null ? <span className="font-mono text-[30px] text-dim">$ –</span> : <Odometer value={formatUsd(allIn)} className="text-[30px] text-fg" />}
+          </div>
+          {demurrage > 0 && (
+            <div className="mt-2 flex items-end justify-between gap-3">
+              <span className="pb-0.5 text-[13px] font-semibold text-red">With est. demurrage</span>
+              <Odometer value={formatUsd(quote?.risk_adjusted_cents ?? 0)} className="text-[22px] text-red" />
+            </div>
+          )}
+          {reasons && reasons.length > 0 && !isWinner && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {reasons.map((r, i) => (
+                <RubberStamp key={r} size="sm" rotate={i % 2 ? 1.5 : -2}>
+                  {r}
+                </RubberStamp>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* AWARDED lands on the winner */}
+        {isWinner && (
+          <div className="absolute right-4 top-[92px] z-10">
+            <RubberStamp size="lg" rotate={-11} testId="awarded-stamp">
+              Awarded
+            </RubberStamp>
           </div>
         )}
-        <AnimatePresence>
-          {reasons && reasons.length > 0 && !isWinner && (
-            <motion.ul initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="mt-3 flex flex-wrap gap-1.5">
-              {reasons.map((r) => (
-                <li key={r} className="rounded-[2px] border border-alarm/40 bg-alarm/10 px-2 py-0.5 font-mono text-[11px] text-alarm">
-                  {r}
-                </li>
-              ))}
-            </motion.ul>
-          )}
-        </AnimatePresence>
-      </div>
 
-      {/* connector glow from stamped field to its transcript line */}
-      <svg className="pointer-events-none absolute inset-0 h-full w-full overflow-visible" aria-hidden>
-        <AnimatePresence>
-          {paths.map((p) => (
-            <motion.path
-              key={p.key}
-              d={p.d}
-              fill="none"
-              stroke="var(--sodium)"
-              strokeWidth={1.6}
-              style={{ filter: "drop-shadow(0 0 4px var(--sodium))" }}
-              initial={{ pathLength: 0, opacity: 1 }}
-              animate={{ pathLength: 1, opacity: [1, 1, 0] }}
-              exit={{ opacity: 0 }}
-              transition={{ pathLength: { duration: 0.45, ease: "easeOut" }, opacity: { duration: 1.6, times: [0, 0.6, 1] } }}
-            />
-          ))}
-        </AnimatePresence>
-      </svg>
+        {/* pencil line from the stamped field back to its words */}
+        <svg className="pointer-events-none absolute inset-0 z-10 h-full w-full overflow-visible" aria-hidden>
+          <AnimatePresence>
+            {paths.map((p) => (
+              <motion.g key={p.key} initial={{ opacity: 1 }} animate={{ opacity: [1, 1, 0] }} exit={{ opacity: 0 }} transition={{ duration: 1.9, times: [0, 0.7, 1] }}>
+                <motion.path
+                  d={p.d}
+                  fill="none"
+                  stroke="rgb(36 83 214)"
+                  strokeWidth={1.6}
+                  strokeLinecap="round"
+                  initial={{ pathLength: 0 }}
+                  animate={{ pathLength: 1 }}
+                  transition={{ duration: 0.5, ease: "easeOut" }}
+                />
+                <motion.circle cx={p.end[0]} cy={p.end[1]} r={3} fill="rgb(36 83 214)" initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.45 }} />
+              </motion.g>
+            ))}
+          </AnimatePresence>
+        </svg>
+      </div>
     </div>
   );
 }

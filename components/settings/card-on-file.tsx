@@ -17,7 +17,7 @@ export function CardOnFile({ customerId, paymentMethodId }: { customerId: string
     }
   }
   return (
-    <div className="panel rounded-[4px] p-6">
+    <div className="panel p-6">
       {paymentMethodId ? (
         <div className="flex items-center justify-between gap-4">
           <div>

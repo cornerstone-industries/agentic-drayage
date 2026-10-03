@@ -18,10 +18,10 @@ function describe(e: EventRow, providers: Map<string, Provider>): { text: string
     case "quote_requested": {
       const n = (p.providers as string[] | undefined)?.length ?? 0;
       const skipped = (p.skipped as unknown[] | undefined)?.length ?? 0;
-      return { text: `Quotes requested ${TRIGGER[p.triggered_by as string] ?? ""}. Dialing ${n}${skipped ? `, ${skipped} skipped (lane not served)` : ""}${p.mode === "replay" ? " [replay]" : ""}`, tone: "text-sodium" };
+      return { text: `Quotes requested ${TRIGGER[p.triggered_by as string] ?? ""}. Dialing ${n}${skipped ? `, ${skipped} skipped (lane not served)` : ""}${p.mode === "replay" ? " [replay]" : ""}`, tone: "text-fg font-semibold" };
     }
     case "call_started":
-      return { text: `${prov} picked up`, tone: "text-signal" };
+      return { text: `${prov} picked up`, tone: "text-live" };
     case "field_heard": {
       const v = p.value;
       const field = String(p.field);
@@ -37,35 +37,35 @@ function describe(e: EventRow, providers: Map<string, Provider>): { text: string
     case "call_ended":
       return { text: `${prov} ${p.status === "no_answer" ? "did not answer" : p.status === "failed" ? "call failed" : "hung up"}`, tone: "text-muted" };
     case "call_failed":
-      return { text: `${prov} call failed: ${p.error}`, tone: "text-alarm" };
+      return { text: `${prov} call failed: ${p.error}`, tone: "text-red" };
     case "recommended":
-      return { text: `Ranked. ${p.winner_provider} recommended at ${usd("all_in_cents")}${p.engine === "fixture" ? " [fixture AI]" : ""}`, tone: "text-sodium" };
+      return { text: `Ranked. ${p.winner_provider} recommended at ${usd("all_in_cents")}${p.engine === "fixture" ? " [fixture AI]" : ""}`, tone: "text-fg font-semibold" };
     case "quote_failed":
-      return { text: `Quote run failed: ${p.reason}`, tone: "text-alarm" };
+      return { text: `Quote run failed: ${p.reason}`, tone: "text-red" };
     case "auto_book_skipped":
       return { text: `Auto-book held: ${p.reason}`, tone: "text-muted" };
     case "auto_book_failed":
-      return { text: `Auto-book failed: ${p.error}`, tone: "text-alarm" };
+      return { text: `Auto-book failed: ${p.error}`, tone: "text-red" };
     case "booked":
-      return { text: `Booked ${prov} for ${usd("amount_cents")}${p.booked_by === "agent" ? " by the agent" : p.booked_by === "auto" ? " automatically" : ""}`, tone: "text-sodium" };
+      return { text: `Booked ${prov} for ${usd("amount_cents")}${p.booked_by === "agent" ? " by the agent" : p.booked_by === "auto" ? " automatically" : ""}`, tone: "text-fg font-semibold" };
     case "payment_authorized":
-      return { text: `Card authorized ${usd("amount_cents")}`, tone: "text-sodium", code: "Stripe" };
+      return { text: `Card authorized ${usd("amount_cents")}`, tone: "text-fg font-semibold", code: "Stripe" };
     case "payment_failed":
-      return { text: `Payment failed: ${p.error ?? p.message ?? ""}`, tone: "text-alarm" };
+      return { text: `Payment failed: ${p.error ?? p.message ?? ""}`, tone: "text-red" };
     case "tender_sent":
       return { text: `Tender emailed to ${prov}`, tone: "text-fg", code: "204" };
     case "tender_email_failed":
-      return { text: `Tender email failed: ${p.error}`, tone: "text-alarm" };
+      return { text: `Tender email failed: ${p.error}`, tone: "text-red" };
     case "accepted":
-      return { text: `${prov} accepted the tender`, tone: "text-signal", code: "990" };
+      return { text: `${prov} accepted the tender`, tone: "text-live", code: "990" };
     case "declined":
-      return { text: `${prov} declined the tender`, tone: "text-alarm", code: "990" };
+      return { text: `${prov} declined the tender`, tone: "text-red", code: "990" };
     case "picked_up":
-      return { text: "Picked up at the terminal", tone: "text-signal", code: "214" };
+      return { text: "Picked up at the terminal", tone: "text-live", code: "214" };
     case "delivered":
-      return { text: "Delivered to the DC", tone: "text-signal", code: "214" };
+      return { text: "Delivered to the DC", tone: "text-live", code: "214" };
     case "payment_captured":
-      return { text: `Payment captured ${usd("amount_cents")}`, tone: "text-signal", code: "210" };
+      return { text: `Payment captured ${usd("amount_cents")}`, tone: "text-live", code: "210" };
     case "payment_canceled":
       return { text: "Authorization released", tone: "text-muted" };
     default:
@@ -93,13 +93,19 @@ export function Timeline({ events, providers }: { events: EventRow[]; providers:
               initial={{ opacity: 0, x: -6 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.25 }}
-              className="grid grid-cols-[62px_1fr_auto] gap-2 py-1 font-mono text-[11.5px] leading-snug"
+              className="grid grid-cols-[58px_1fr_auto] gap-2 border-b border-dashed border-rule py-1.5 font-mono text-[11.5px] leading-snug last:border-0"
             >
-              <time className="text-dim tabular-nums">
+              <time className="text-muted tabular-nums">
                 {t ? t.toLocaleTimeString("en-US", { hour12: false, timeZone: "America/New_York" }) : ""}
               </time>
               <span className={d.tone}>{d.text}</span>
-              {d.code ? <span className="text-dim" title={d.code === "Stripe" ? "Stripe" : `EDI ${d.code} equivalent`}>{d.code === "Stripe" ? "" : `EDI ${d.code}`}</span> : <span />}
+              {d.code && d.code !== "Stripe" ? (
+                <span className="self-start rounded-[3px] border border-stamp/40 px-1 text-[10px] text-stamp" title={`EDI ${d.code} equivalent`}>
+                  {d.code}
+                </span>
+              ) : (
+                <span />
+              )}
             </motion.li>
           );
         })}

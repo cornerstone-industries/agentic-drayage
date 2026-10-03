@@ -31,14 +31,14 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
     <>
       <TopBar importerName={imp.name} active="/settings" />
       <main className="mx-auto max-w-[1100px] px-4 pb-20 pt-8 sm:px-6">
-        <h1 className="font-display text-4xl font-black uppercase tracking-tight font-wide">Settings</h1>
-        <p className="mt-2 text-muted">Guardrails for what agents may do on their own, how you pay, and who gets the calls.</p>
-        {params.card === "saved" && <p className="mt-6 rounded-[3px] border border-signal/40 bg-signal/10 px-3 py-2 font-mono text-xs text-signal">Card saved. Bookings will authorize it off-session.</p>}
-        {params.provider === "onboarded" && <p className="mt-6 rounded-[3px] border border-signal/40 bg-signal/10 px-3 py-2 font-mono text-xs text-signal">Provider onboarding updated.</p>}
+        <h1 className="font-cond text-[56px] font-extrabold leading-[1] tracking-[-0.025em] text-fg">Settings</h1>
+        <p className="mt-3 text-[17px] text-muted">Guardrails for what agents may do on their own, how you pay, and who gets the calls.</p>
+        {params.card === "saved" && <p className="mt-6 rounded-[12px] border border-live/30 bg-live/5 px-4 py-2.5 text-[14px] text-live">Card saved. Bookings will authorize it off-session.</p>}
+        {params.provider === "onboarded" && <p className="mt-6 rounded-[12px] border border-live/30 bg-live/5 px-4 py-2.5 text-[14px] text-live">Provider onboarding updated.</p>}
 
         <section className="mt-10 grid gap-10 border-t border-line pt-8 lg:grid-cols-[260px_1fr]">
           <div>
-            <h2 className="font-display text-lg font-extrabold font-semiwide">Guardrails</h2>
+            <h2 className="font-cond text-[20px] font-bold text-fg">Guardrails</h2>
             <p className="mt-2 text-sm text-muted">Agents and auto-book can spend up to this limit. Anything above it waits for a person.</p>
           </div>
           <GuardrailsForm
@@ -53,7 +53,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
 
         <section className="mt-10 grid gap-10 border-t border-line pt-8 lg:grid-cols-[260px_1fr]">
           <div>
-            <h2 className="font-display text-lg font-extrabold font-semiwide">Payment method</h2>
+            <h2 className="font-cond text-[20px] font-bold text-fg">Payment method</h2>
             <p className="mt-2 text-sm text-muted">Bookings authorize this card and capture it when the carrier marks the box delivered.</p>
           </div>
           <CardOnFile customerId={imp.stripe_customer_id} paymentMethodId={imp.default_payment_method_id} />
@@ -61,7 +61,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
 
         <section className="mt-10 grid gap-10 border-t border-line pt-8 lg:grid-cols-[260px_1fr]">
           <div>
-            <h2 className="font-display text-lg font-extrabold font-semiwide">Drayage providers</h2>
+            <h2 className="font-cond text-[20px] font-bold text-fg">Drayage providers</h2>
             <p className="mt-2 text-sm text-muted">
               Your own carriers. PortCall only calls the ones that serve the lane, and pays them through Stripe Connect.
               {callMode() === "live" ? " Calls go to these numbers." : " Replay mode is on, so no phones ring."}
@@ -72,7 +72,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
 
         <section className="mt-10 grid gap-10 border-t border-line pt-8 lg:grid-cols-[260px_1fr]">
           <div>
-            <h2 className="font-display text-lg font-extrabold font-semiwide">Agent access</h2>
+            <h2 className="font-cond text-[20px] font-bold text-fg">Agent access</h2>
             <p className="mt-2 text-sm text-muted">Connect Claude or any MCP client. The key is scoped to {imp.name}.</p>
           </div>
           <AgentAccess endpoint={base ? `${base}/api/mcp` : "/api/mcp"} apiKey={imp.mcp_api_key ?? ""} />

@@ -8,7 +8,7 @@ export function SignOut() {
   return (
     <button
       type="button"
-      className="font-mono text-xs text-muted transition-colors hover:text-fg"
+      className="text-[14px] font-semibold text-muted transition-colors hover:text-fg"
       onClick={async () => {
         await createClient().auth.signOut();
         router.push("/login");

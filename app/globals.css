@@ -2,140 +2,123 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Port control room at night. Tokens from CLAUDE.md section 11. */
+/* Paper and ink. Concrete-white yard paper, carbon-form copies, stamp-pad blue, stamp red,
+   ship-to-shore crane orange for actions, a live green for an open line. */
 :root {
-  --ink: #0a0e13;
-  --panel: #10161e;
-  --panel-2: #0d1219;
-  --line: #1c2733;
-  --sodium: #ffb020;
-  --signal: #2ee6c5;
-  --alarm: #ff4d4d;
-  --text: #e6edf3;
-  --muted: #7d8b99;
-  --dim: #4a5866;
-  --ink-rgb: 10 14 19;
-  --panel-rgb: 16 22 30;
-  --panel-2-rgb: 13 18 25;
-  --line-rgb: 28 39 51;
-  --sodium-rgb: 255 176 32;
-  --signal-rgb: 46 230 197;
-  --alarm-rgb: 255 77 77;
-  --text-rgb: 230 237 243;
-  --muted-rgb: 125 139 153;
-  --dim-rgb: 74 88 102;
-  color-scheme: dark;
+  --paper-rgb: 243 243 239;
+  --sheet-rgb: 255 255 255;
+  --sheet-2-rgb: 249 249 246;
+  --canary-rgb: 255 244 200;
+  --blush-rgb: 253 228 233;
+  --rule-rgb: 226 227 222;
+  --crane-rgb: 233 86 26;
+  --live-rgb: 11 135 91;
+  --stamp-rgb: 36 83 214;
+  --red-rgb: 216 58 46;
+  --marker-rgb: 255 226 74;
+  --text-rgb: 18 20 23;
+  --muted-rgb: 99 106 115;
+  --dim-rgb: 162 167 160;
+  --steel-rgb: 126 133 142;
+  color-scheme: light;
 }
 
 @layer base {
   html,
   body {
-    background: var(--ink);
-    color: var(--text);
+    background: rgb(var(--paper-rgb));
+    color: rgb(var(--text-rgb));
   }
   body {
     min-height: 100dvh;
-    font-feature-settings: "ss01", "tnum";
+    font-feature-settings: "tnum";
     -webkit-font-smoothing: antialiased;
   }
-  /* Faint survey grid + scanlines + sodium haze from the cranes */
-  body::before {
-    content: "";
-    position: fixed;
-    inset: 0;
-    z-index: -2;
-    pointer-events: none;
-    background:
-      radial-gradient(120% 60% at 50% -10%, rgba(255, 176, 32, 0.07), transparent 60%),
-      repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.018) 0 1px, transparent 1px 3px),
-      linear-gradient(rgba(28, 39, 51, 0.35) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(28, 39, 51, 0.35) 1px, transparent 1px),
-      var(--ink);
-    background-size: auto, auto, 56px 56px, 56px 56px, auto;
-  }
-  /* Film grain */
-  body::after {
-    content: "";
-    position: fixed;
-    inset: -50%;
-    z-index: 60;
-    pointer-events: none;
-    opacity: 0.055;
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.9 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
-  }
   :focus-visible {
-    outline: 2px solid var(--sodium);
+    outline: 2px solid rgb(var(--stamp-rgb));
     outline-offset: 2px;
   }
   ::selection {
-    background: rgba(255, 176, 32, 0.35);
+    background: rgba(255, 226, 64, 0.7);
   }
 }
 
 @layer components {
-  .font-wide {
-    font-variation-settings: "wdth" 125;
-  }
+  /* Legacy width helpers from the first design: no-ops now */
+  .font-wide,
   .font-semiwide {
-    font-variation-settings: "wdth" 112;
+    font-variation-settings: normal;
   }
   /* Box numbers are stenciled on steel */
   .stencil {
-    font-family: var(--font-plex-mono), ui-monospace, monospace;
-    font-weight: 600;
-    letter-spacing: 0.14em;
+    font-family: var(--font-stencil), var(--font-barlow-cond), sans-serif;
+    font-weight: 800;
+    letter-spacing: 0.04em;
   }
   .panel {
-    background: linear-gradient(180deg, rgba(16, 22, 30, 0.96), rgba(13, 18, 25, 0.96));
-    border: 1px solid var(--line);
+    background: rgb(var(--sheet-rgb));
+    border: 1px solid rgb(var(--rule-rgb));
+    border-radius: 16px;
+    box-shadow: 0 1px 2px rgba(18, 20, 23, 0.04), 0 12px 32px -20px rgba(18, 20, 23, 0.18);
   }
   .hairline {
-    border-color: var(--line);
+    border-color: rgb(var(--rule-rgb));
   }
   .tick-label {
-    font-family: var(--font-plex-mono), ui-monospace, monospace;
-    font-size: 11px;
-    letter-spacing: 0.04em;
-    color: var(--muted);
+    font-size: 12.5px;
+    font-weight: 500;
+    color: rgb(var(--muted-rgb));
   }
-  .bar {
-    transform-origin: center;
-    animation: bar 0.9s ease-in-out infinite;
+  /* Corrugated container steel, tinted by --box */
+  .corrugated {
+    background-color: var(--box, #9b3b2a);
+    background-image:
+      repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.07) 0 6px, rgba(0, 0, 0, 0.12) 6px 9px, rgba(255, 255, 255, 0.04) 9px 14px),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(0, 0, 0, 0.18));
   }
-  .flap {
-    position: relative;
-    display: inline-flex;
-    justify-content: center;
-    min-width: 0.78em;
-    background: linear-gradient(180deg, #161e28 0 49%, #0b1017 51% 100%);
-    border-radius: 2px;
-    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.6);
-    perspective: 220px;
-    overflow: hidden;
+  /* Tractor-feed teleprinter paper */
+  .tractor {
+    background-color: rgb(var(--sheet-2-rgb));
+    background-image:
+      radial-gradient(circle at 9px 11px, rgb(var(--paper-rgb)) 3.2px, rgba(0, 0, 0, 0.12) 3.6px, transparent 4.2px),
+      radial-gradient(circle at calc(100% - 9px) 11px, rgb(var(--paper-rgb)) 3.2px, rgba(0, 0, 0, 0.12) 3.6px, transparent 4.2px),
+      repeating-linear-gradient(180deg, transparent 0 21px, rgba(13, 135, 92, 0.07) 21px 42px);
+    background-size: 100% 22px, 100% 22px, 100% 42px;
+    background-repeat: repeat-y;
   }
-  .flap::after {
-    content: "";
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: 50%;
-    height: 1px;
-    background: rgba(0, 0, 0, 0.85);
+  /* Highlighter swipe: background grows left to right */
+  .marker {
+    background-image: linear-gradient(100deg, rgba(255, 226, 64, 0) 0.4%, rgba(255, 226, 64, 0.85) 2%, rgba(255, 220, 40, 0.75) 97%, rgba(255, 226, 64, 0) 99.6%);
+    background-repeat: no-repeat;
+    background-size: 0% 82%;
+    background-position: 0 70%;
+    transition: background-size 0.55s cubic-bezier(0.25, 0.8, 0.3, 1);
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
   }
-  .btn-sodium {
-    @apply inline-flex items-center justify-center gap-2 rounded-[3px] bg-sodium px-5 py-3 font-display text-sm font-extrabold text-ink transition-[filter,transform] hover:brightness-110 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50;
-    font-variation-settings: "wdth" 115;
+  .marker[data-on="true"] {
+    background-size: 100% 82%;
+  }
+  .ink-blue {
+    color: rgb(var(--stamp-rgb));
+  }
+  /* Pill buttons: ink for the main action, white for the rest */
+  .btn-sodium,
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-fg px-6 py-3 text-[15px] font-semibold text-white transition-[transform,background-color] hover:bg-black active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40;
   }
   .btn-ghost {
-    @apply inline-flex items-center justify-center gap-2 rounded-[3px] border border-line px-4 py-2.5 font-display text-sm font-semibold text-fg transition-colors hover:border-muted disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-2 rounded-full border border-rule bg-sheet px-5 py-2.5 text-[15px] font-semibold text-fg transition-colors hover:border-steel disabled:cursor-not-allowed disabled:opacity-40;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .bar,
-  .animate-ring-pulse,
-  .animate-live-glow,
+  .animate-ring,
+  .animate-live-dot,
   .animate-blink {
     animation: none !important;
+  }
+  .marker {
+    transition: none;
   }
 }

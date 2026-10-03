@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, LayoutGroup, motion } from "motion/react";
-import { formatContainerNumber, formatUsd } from "@/lib/money";
+import { formatUsd } from "@/lib/money";
 import { cityFromAddress, portDate, shortDate } from "@/lib/dates";
 import { stateFromAddress } from "@/lib/money";
 import { LfdMeter } from "@/components/freight/lfd-meter";
 import { JourneyTrack } from "@/components/freight/journey-track";
+import { ContainerDoor } from "@/components/freight/container-door";
 import { CallCard } from "./call-card";
 import { Typewriter } from "./typewriter";
 import { PaymentStamp } from "./payment-stamp";
@@ -148,229 +149,232 @@ export function ContainerLive({
   }
 
   const calling = activeQr?.status === "calling";
+
+  // When a run starts (button, an agent over MCP, or the cron), bring the rail into view.
+  const wallRef = useRef<HTMLElement>(null);
+  const scrolledFor = useRef<string | null>(activeQr?.status === "calling" ? activeQr.id : null);
+  useEffect(() => {
+    if (!calling || !activeQr || scrolledFor.current === activeQr.id) return;
+    scrolledFor.current = activeQr.id;
+    wallRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [calling, activeQr]);
   const canQuote = !CLOSED.has(c.status ?? "") && !calling;
   const city = cityFromAddress(c.destination_address);
   const state2 = stateFromAddress(c.destination_address);
   const autoNote = [...events].reverse().find((e) => e.type === "auto_book_failed" || e.type === "auto_book_skipped");
   const failNote = activeQr?.status === "failed" ? [...events].reverse().find((e) => e.type === "quote_failed") : undefined;
 
+  const headline = calling
+    ? "On the phone with your carriers"
+    : recommendation
+      ? "Quotes are in, ranked by real cost"
+      : activeQr?.status === "failed"
+        ? "That run did not finish"
+        : "Three carriers, one minute";
+  const subline = calling
+    ? mode === "replay"
+      ? "Replaying recorded dispatcher calls through the live pipeline. This is not a live call."
+      : "Every number is pulled from the conversation the moment it is said."
+    : recommendation
+      ? `Ranked on all-in price plus estimated demurrage at ${formatUsd(demurragePerDayCents)}/day past the last free day.`
+      : mode === "replay"
+        ? "Replay mode: recorded dispatcher calls run through the real pipeline."
+        : "PortCall phones your own carriers at the same time and writes down every quote as they talk.";
+
   return (
-    <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_340px]">
+    <div className="grid gap-10 xl:grid-cols-[minmax(0,1fr)_320px]">
       <div className="min-w-0">
-        {/* Box header */}
-        <section className="grid gap-6 border-b border-line pb-6 lg:grid-cols-[minmax(0,1fr)_minmax(300px,420px)] lg:items-end">
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-3 font-mono text-[11px] text-muted">
-              <Link href="/dashboard" className="hover:text-fg">
-                Board
-              </Link>
-              <span className="text-dim">/</span>
-              <span>
-                {c.size} on {c.vessel}
-              </span>
-              <span className={`ml-1 inline-flex items-center gap-1.5 ${connected ? "text-signal" : "text-dim"}`} title="Supabase Realtime connection">
-                <span className={`h-1.5 w-1.5 rounded-full ${connected ? "bg-signal shadow-[0_0_6px_var(--signal)]" : "bg-dim"}`} />
-                {connected ? "Realtime connected" : "Connecting"}
-              </span>
-            </div>
-            <h1 className="stencil mt-3 whitespace-nowrap text-[clamp(28px,4.2vw,56px)] leading-none text-fg" data-container={c.container_number}>
-              {formatContainerNumber(c.container_number)}
-            </h1>
-            <dl className="mt-4 grid grid-cols-2 gap-x-8 gap-y-2 font-mono text-xs sm:grid-cols-4">
-              <div>
-                <dt className="text-muted">Terminal</dt>
-                <dd className="mt-0.5 text-fg">{c.terminal}</dd>
-              </div>
-              <div>
-                <dt className="text-muted">ETA</dt>
-                <dd className="mt-0.5 text-fg">{c.eta ? shortDate(portDate(c.eta)) : "--"}</dd>
-              </div>
-              <div>
-                <dt className="text-muted">Deliver to</dt>
-                <dd className="mt-0.5 text-fg">
-                  {city}
-                  {state2 ? `, ${state2}` : ""}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-muted">Deliver by</dt>
-                <dd className="mt-0.5 text-fg">{shortDate(c.deliver_by)}</dd>
-              </div>
-            </dl>
+        {/* The box: its door, its dates, its clock */}
+        <section>
+          <div className="mb-4 flex flex-wrap items-center gap-3 text-[13px] text-muted">
+            <Link href="/dashboard" className="font-semibold text-fg hover:underline">
+              Inbound
+            </Link>
+            <span className="text-dim">/</span>
+            <span>
+              {c.size} on {c.vessel}
+            </span>
+            <span className={`ml-auto text-[13px] font-semibold ${connected ? "text-live" : "text-dim"}`} title="Supabase Realtime">
+              {connected ? "Updating live" : "Connecting..."}
+            </span>
           </div>
-          <div className="space-y-5">
+          <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
+            <ContainerDoor number={c.container_number} size={c.size} />
             <LfdMeter eta={c.eta} lastFreeDay={c.last_free_day} status={c.status} demurragePerDayCents={demurragePerDayCents} />
           </div>
-          <div className="lg:col-span-2">
-            <JourneyTrack status={c.status} eta={c.eta} />
+          <div className="mt-5 rounded-[16px] border border-rule bg-sheet px-6 pb-3 pt-4">
+            <dl className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-4">
+              {[
+                ["Terminal", c.terminal?.replace(" Terminal", "")],
+                ["Arrives", c.eta ? shortDate(portDate(c.eta)) : "–"],
+                ["Deliver to", `${city ?? ""}${state2 ? `, ${state2}` : ""}`],
+                ["Deliver by", shortDate(c.deliver_by)],
+              ].map(([k, v]) => (
+                <div key={k}>
+                  <dt className="text-[12.5px] text-muted">{k}</dt>
+                  <dd className="mt-0.5 font-cond text-[18px] font-bold text-fg">{v}</dd>
+                </div>
+              ))}
+            </dl>
+            <div className="mt-4 border-t border-rule pt-4">
+              <JourneyTrack status={c.status} eta={c.eta} boxNumber={c.container_number} />
+            </div>
           </div>
         </section>
 
-        {/* Call Wall */}
-        <section className="pt-6" data-testid="call-wall" data-realtime={connected ? "on" : "off"} aria-label="Call wall">
-          <div className="mb-4 flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <h2 className="font-display text-2xl font-black uppercase tracking-tight font-wide">Call wall</h2>
-              <p className="mt-1 text-sm text-muted">
-                {calling
-                  ? mode === "replay"
-                    ? "Replaying recorded dispatcher scripts through the live pipeline. Not a live call."
-                    : "PortCall is on the phone with your carriers. Fields stamp in as they are said."
-                  : recommendation
-                    ? "Calls are done. Ranked on all-in cost plus estimated demurrage."
-                    : `Three carriers on the line at once. ${mode === "replay" ? "Replay mode is on: recorded scripts, real pipeline." : "Live phone calls through Vapi."}`}
-              </p>
+        {/* Call Wall: the dispatch rail */}
+        <section ref={wallRef} className="scroll-mt-20 pt-12" data-testid="call-wall" data-realtime={connected ? "on" : "off"} aria-label="Call wall">
+          <div className="flex flex-wrap items-end justify-between gap-5">
+            <div className="max-w-xl">
+              <h2 className="font-cond text-[40px] font-extrabold leading-[1] tracking-[-0.02em] text-fg">{headline}</h2>
+              <p className="mt-3 text-[15.5px] leading-relaxed text-muted">{subline}</p>
             </div>
-            <div className="flex flex-wrap items-start gap-3">
-            {state.quoteRequests.length > 0 && !calling && (
-              <button type="button" className="btn-ghost !py-3" onClick={onReset} disabled={resetting} data-testid="reset-box">
-                {resetting ? "Resetting..." : armed ? "Click again to reset" : "Reset this box"}
-              </button>
-            )}
-            {canQuote && (
-              <div className="flex flex-col items-end gap-1.5">
-                <button type="button" className="btn-sodium" onClick={getQuotes} disabled={requesting} data-testid="get-quotes">
-                  {requesting ? "Dialing..." : activeQr ? "Call carriers again" : "Get quotes"}
+            <div className="flex flex-wrap items-center gap-3">
+              {state.quoteRequests.length > 0 && !calling && (
+                <button type="button" className="btn-ghost" onClick={onReset} disabled={resetting} data-testid="reset-box">
+                  {resetting ? "Resetting..." : armed ? "Click again to reset" : "Reset this box"}
                 </button>
-                <span className="font-mono text-[11px] text-muted">or let your agent call request_quotes over MCP</span>
-              </div>
-            )}
+              )}
+              {canQuote && (
+                <button type="button" className="btn-primary" onClick={getQuotes} disabled={requesting} data-testid="get-quotes">
+                  {requesting ? "Dialing..." : activeQr ? "Call carriers again" : "Call 3 carriers"}
+                </button>
+              )}
             </div>
           </div>
-          {requestError && <p className="mb-4 rounded-[3px] border border-alarm/40 bg-alarm/10 px-3 py-2 font-mono text-xs text-alarm">{requestError}</p>}
+          {canQuote && !activeQr && <p className="mt-2 text-right text-[12.5px] text-muted">or let your agent call request_quotes over MCP</p>}
+          {requestError && <p className="mt-4 rounded-[12px] border border-red/30 bg-red/5 px-4 py-2.5 text-[14px] text-red">{requestError}</p>}
           {failNote && (
-            <p className="mb-4 rounded-[3px] border border-alarm/40 bg-alarm/10 px-3 py-2 font-mono text-xs text-alarm">
+            <p className="mt-4 rounded-[12px] border border-red/30 bg-red/5 px-4 py-2.5 text-[14px] text-red">
               {String((failNote.payload as { reason?: string })?.reason ?? "Quote run failed")}
             </p>
           )}
 
-          <LayoutGroup>
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {slots.map((s, i) => {
-                const q = s.call ? quoteByCall.get(s.call.id) : undefined;
-                const rank = recommendation && q ? (recommendation.ranked_quote_ids ?? []).indexOf(q.id) + 1 || undefined : undefined;
-                const isWinner = Boolean(recommendation && q && q.id === recommendation.winner_quote_id);
-                return (
-                  <motion.div
-                    key={s.key}
-                    layout
-                    transition={{ type: "spring", stiffness: 240, damping: 28 }}
-                    initial={{ opacity: 0, y: 14 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    style={{ transitionDelay: `${i * 60}ms` }}
-                  >
-                    <CallCard
-                      channel={s.channel}
-                      provider={s.provider}
-                      call={s.call}
-                      lines={s.call ? state.lines.filter((l) => l.call_id === s.call!.id) : []}
-                      quote={q}
-                      lastFreeDay={c.last_free_day}
-                      rank={rank}
-                      isWinner={isWinner}
-                      reasons={recommendation && q && !isWinner ? lossReasons(q, winnerQuote) : undefined}
-                    />
-                  </motion.div>
-                );
-              })}
+          <div className="relative mt-10">
+            {/* the steel rail the tickets hang from */}
+            <div className="absolute left-[-12px] right-[-12px] top-0 z-10 h-[10px] rounded-full bg-[linear-gradient(180deg,#D9DDE1,#8E959D_55%,#6A7179)] shadow-[0_3px_6px_-2px_rgba(0,0,0,0.35)]" aria-hidden>
+              {[2, 98].map((x) => (
+                <span key={x} className="absolute top-1/2 h-[6px] w-[6px] -translate-y-1/2 rounded-full bg-[#4A5159]" style={{ left: `${x}%` }} />
+              ))}
             </div>
-          </LayoutGroup>
+            <LayoutGroup>
+              <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+                {slots.map((s, i) => {
+                  const q = s.call ? quoteByCall.get(s.call.id) : undefined;
+                  const rank = recommendation && q ? (recommendation.ranked_quote_ids ?? []).indexOf(q.id) + 1 || undefined : undefined;
+                  const isWinner = Boolean(recommendation && q && q.id === recommendation.winner_quote_id);
+                  return (
+                    <motion.div
+                      key={s.key}
+                      layout
+                      transition={{ type: "spring", stiffness: 210, damping: 26 }}
+                      initial={{ opacity: 0, y: -24 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      style={{ transitionDelay: `${i * 60}ms` }}
+                    >
+                      <CallCard
+                        channel={s.channel}
+                        provider={s.provider}
+                        call={s.call}
+                        lines={s.call ? state.lines.filter((l) => l.call_id === s.call!.id) : []}
+                        quote={q}
+                        lastFreeDay={c.last_free_day}
+                        rank={rank}
+                        isWinner={isWinner}
+                        reasons={recommendation && q && !isWinner ? lossReasons(q, winnerQuote) : undefined}
+                      />
+                    </motion.div>
+                  );
+                })}
+              </div>
+            </LayoutGroup>
+          </div>
 
           {skipped.length > 0 && (
-            <ul className="mt-4 flex flex-wrap gap-2">
+            <ul className="mt-6 flex flex-wrap gap-2">
               {skipped.map((s) => (
-                <li key={s.providerId} className="rounded-[3px] border border-dashed border-line px-3 py-2 font-mono text-[11px] text-dim">
-                  <span className="text-muted">{s.providerName}</span> {s.reason.replace(/^Not called: /, "not called: ")}
+                <li key={s.providerId} className="rounded-full border border-dashed border-steel/40 px-3.5 py-1.5 text-[13px] text-muted">
+                  <span className="font-semibold text-fg">{s.providerName}</span> {s.reason.replace(/^Not called: /, "not called, ")}
                 </li>
               ))}
             </ul>
           )}
         </section>
 
-        {/* Ranking reveal + booking */}
+        {/* Ranking reveal: Claude's call on a legal pad, then the booking */}
         <AnimatePresence>
           {recommendation && (
             <motion.section
               key={recommendation.id}
-              initial={{ opacity: 0, y: 16 }}
+              initial={{ opacity: 0, y: 24 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.45 }}
-              className="panel relative mt-8 overflow-hidden rounded-[4px]"
+              transition={{ type: "spring", stiffness: 160, damping: 22 }}
+              className="mt-12 grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]"
               data-testid="ranking-reveal"
             >
-              <div className="absolute inset-y-0 left-0 w-1 bg-sodium shadow-[0_0_18px_var(--sodium)]" />
-              <div className="grid gap-8 p-6 pl-8 lg:grid-cols-[minmax(0,1fr)_320px]">
-                <div>
-                  <div className="flex items-center gap-3">
-                    <h2 className="font-display text-lg font-extrabold font-semiwide">{recEngine === "fixture" ? "Fixture ranking" : "Claude's call"}</h2>
-                    {recEngine === "fixture" && (
-                      <span className="rounded-[3px] border border-alarm/40 px-2 py-0.5 font-mono text-[10.5px] text-alarm">dev only, not Claude</span>
-                    )}
+              <div className="relative overflow-hidden rounded-[18px] border border-[#E8D98A] bg-[#FFF8CF] shadow-[0_18px_40px_-28px_rgba(120,90,0,0.6)]">
+                <div className="absolute inset-y-0 left-[54px] w-[1.5px] bg-red/50" aria-hidden />
+                <div className="absolute inset-y-0 left-[58px] w-[1.5px] bg-red/30" aria-hidden />
+                <div className="py-6 pl-[78px] pr-7">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <h3 className="font-cond text-[15px] font-bold text-fg">{recEngine === "fixture" ? "Fixture ranking" : "Claude's call"}</h3>
+                    {recEngine === "fixture" && <span className="rounded-full border border-red/40 px-2 text-[11.5px] font-semibold text-red">dev only, not Claude</span>}
                   </div>
-                  <div className="mt-3">
+                  <div className="mt-2 min-h-[224px] bg-[repeating-linear-gradient(180deg,transparent_0_31px,rgba(36,83,214,0.18)_31px_32px)]">
                     <Typewriter text={recommendation.reasoning ?? ""} />
                   </div>
-                  <p className="mt-4 font-mono text-[11px] text-muted">
-                    Risk-adjusted = all-in + estimated demurrage at {formatUsd(demurragePerDayCents)}/day past the last free day.
-                  </p>
                 </div>
+              </div>
 
-                <div className="flex flex-col gap-4 border-t border-line pt-6 lg:border-l lg:border-t-0 lg:pl-8 lg:pt-0">
-                  {booking ? (
-                    <BookingStatus booking={booking} providerName={providerMap.get(booking.provider_id ?? "")?.name ?? "Carrier"} containerStatus={c.status} />
-                  ) : winnerQuote ? (
-                    <>
-                      <div>
-                        <div className="font-mono text-[11px] text-muted">Recommended</div>
-                        <div className="mt-1 font-display text-xl font-extrabold">{providerMap.get(winnerQuote.provider_id ?? "")?.name}</div>
-                        <div className="mt-1 font-mono text-2xl text-sodium">{formatUsd(winnerQuote.all_in_cents)}</div>
-                      </div>
-                      <button type="button" className="btn-sodium w-full" disabled={booking_} onClick={() => book(winnerQuote.id)} data-testid="book">
-                        {booking_ ? "Authorizing card..." : `Book for ${formatUsd(winnerQuote.all_in_cents)}`}
-                      </button>
-                      <p className="font-mono text-[11px] text-muted">
-                        Authorizes your saved card now. The carrier is paid through Stripe Connect when they mark it delivered.
+              <div className="panel relative overflow-hidden p-6">
+                {booking ? (
+                  <BookingStatus booking={booking} providerName={providerMap.get(booking.provider_id ?? "")?.name ?? "Carrier"} containerStatus={c.status} />
+                ) : winnerQuote ? (
+                  <>
+                    <div className="text-[13px] text-muted">Recommended</div>
+                    <div className="mt-1 font-cond text-[26px] font-bold leading-tight text-fg">{providerMap.get(winnerQuote.provider_id ?? "")?.name}</div>
+                    <div className="mt-1 font-mono text-[30px] font-semibold text-fg">{formatUsd(winnerQuote.all_in_cents)}</div>
+                    <button type="button" className="btn-primary mt-5 w-full" disabled={booking_} onClick={() => book(winnerQuote.id)} data-testid="book">
+                      {booking_ ? "Authorizing card..." : `Book for ${formatUsd(winnerQuote.all_in_cents)}`}
+                    </button>
+                    <p className="mt-3 text-[13px] leading-relaxed text-muted">Holds your card now. The carrier gets paid through Stripe when they mark it delivered.</p>
+                    {autoNote && (
+                      <p className={`mt-3 text-[13px] ${autoNote.type === "auto_book_failed" ? "text-red" : "text-muted"}`}>
+                        {autoNote.type === "auto_book_failed"
+                          ? `Auto-book failed: ${(autoNote.payload as { error?: string }).error}`
+                          : `Auto-book held: ${(autoNote.payload as { reason?: string }).reason}`}
                       </p>
-                      {autoNote && (
-                        <p className={`font-mono text-[11px] ${autoNote.type === "auto_book_failed" ? "text-alarm" : "text-muted"}`}>
-                          {autoNote.type === "auto_book_failed"
-                            ? `Auto-book failed: ${(autoNote.payload as { error?: string }).error}`
-                            : `Auto-book held: ${(autoNote.payload as { reason?: string }).reason}`}
-                        </p>
-                      )}
-                      {!autoNote && autoBook.enabled && (
-                        <p className="font-mono text-[11px] text-muted">Auto-book is on under {formatUsd(autoBook.limitCents)}.</p>
-                      )}
-                      {bookError && <p className="rounded-[3px] border border-alarm/40 bg-alarm/10 px-3 py-2 font-mono text-xs text-alarm">{bookError}</p>}
-                    </>
-                  ) : null}
-                </div>
+                    )}
+                    {!autoNote && autoBook.enabled && <p className="mt-3 text-[13px] text-muted">Auto-book is on under {formatUsd(autoBook.limitCents)}.</p>}
+                    {bookError && <p className="mt-3 rounded-[12px] border border-red/30 bg-red/5 px-3 py-2 text-[13px] text-red">{bookError}</p>}
+                  </>
+                ) : null}
               </div>
             </motion.section>
           )}
         </AnimatePresence>
 
         {!recommendation && booking && (
-          <section className="panel mt-8 rounded-[4px] p-6">
+          <section className="panel relative mt-12 overflow-hidden p-6">
             <BookingStatus booking={booking} providerName={providerMap.get(booking.provider_id ?? "")?.name ?? "Carrier"} containerStatus={c.status} />
           </section>
         )}
 
-        {aiEngine === "unconfigured" && (
-          <p className="mt-6 font-mono text-[11px] text-alarm">Claude is not configured: set AI_GATEWAY_API_KEY to extract quotes and rank them.</p>
-        )}
+        {aiEngine === "unconfigured" && <p className="mt-6 text-[13px] text-red">Claude is not configured: set AI_GATEWAY_API_KEY to extract quotes and rank them.</p>}
       </div>
 
-      {/* Timeline */}
+      {/* The log: a receipt tape of every event */}
       <aside className="xl:sticky xl:top-20 xl:h-[calc(100dvh-6rem)]">
-        <div className="panel flex h-full max-h-[70vh] flex-col rounded-[4px] xl:max-h-none">
-          <div className="flex items-center justify-between border-b border-line px-4 py-3">
-            <h2 className="font-display text-sm font-extrabold uppercase tracking-wide font-semiwide">Timeline</h2>
-            <span className="font-mono text-[10.5px] text-dim">live from Supabase</span>
+        <div className="flex h-full max-h-[70vh] flex-col overflow-hidden rounded-t-[14px] border border-b-0 border-rule bg-sheet shadow-[0_14px_40px_-30px_rgba(18,20,23,0.5)] xl:max-h-none">
+          <div className="flex items-center justify-between border-b border-dashed border-rule px-4 py-3">
+            <h2 className="font-cond text-[15px] font-bold text-fg">Log</h2>
+            <span className="text-[12px] text-muted">streamed from Supabase</span>
           </div>
-          <div ref={timelineBox} className="flex-1 overflow-y-auto px-4 py-3 [scrollbar-width:thin]">
-            {events.length ? <Timeline events={events} providers={providerMap} /> : <p className="font-mono text-xs text-dim">Nothing yet. Get quotes to start the clock.</p>}
+          <div ref={timelineBox} className="flex-1 overflow-y-auto px-4 py-2 [scrollbar-width:thin]">
+            {events.length ? <Timeline events={events} providers={providerMap} /> : <p className="py-2 text-[13px] text-dim">Nothing yet. Call carriers to start the clock.</p>}
           </div>
+          {/* torn receipt edge */}
+          <div className="h-3 bg-[linear-gradient(135deg,rgb(var(--sheet-rgb))_50%,transparent_50%),linear-gradient(225deg,rgb(var(--sheet-rgb))_50%,transparent_50%)] bg-[size:12px_12px] bg-repeat-x" aria-hidden />
         </div>
       </aside>
     </div>
@@ -401,31 +405,39 @@ function BookingStatus({
   };
   return (
     <div data-testid="booking-status">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <div className="font-mono text-[11px] text-muted">
-            {booking.booked_by === "agent" ? "Booked by your agent" : booking.booked_by === "auto" ? "Auto-booked under your limit" : "Booked by you"}
-          </div>
-          <div className="mt-1 font-display text-xl font-extrabold">{providerName}</div>
-          <div className="mt-1 font-mono text-2xl text-fg">{formatUsd(booking.amount_cents)}</div>
-          <div className="mt-0.5 font-mono text-[11px] text-muted">incl. {formatUsd(booking.platform_fee_cents)} platform fee</div>
-        </div>
+      <div className="text-[13px] text-muted">
+        {booking.booked_by === "agent" ? "Booked by your agent" : booking.booked_by === "auto" ? "Auto-booked under your limit" : "Booked by you"}
+      </div>
+      <div className="mt-1 font-cond text-[26px] font-bold leading-tight text-fg">{providerName}</div>
+      <div className="mt-1 font-mono text-[30px] font-semibold text-fg">{formatUsd(booking.amount_cents)}</div>
+      <div className="text-[12.5px] text-muted">includes {formatUsd(booking.platform_fee_cents)} platform fee</div>
+      <div className="absolute right-5 top-[92px]">
         <PaymentStamp status={booking.payment_status} />
       </div>
-      <ol className="mt-5 grid grid-cols-4 gap-1">
-        {STEPS.map((s) => (
-          <li key={s.key} className="flex flex-col gap-1.5">
-            <span className={`h-1 rounded-full transition-colors duration-500 ${reached(s.key) ? "bg-signal shadow-[0_0_6px_var(--signal)]" : "bg-line"}`} />
-            <span className={`font-mono text-[10.5px] ${reached(s.key) ? "text-fg" : "text-dim"}`}>{booking.tender_status === "declined" && s.key === "accepted" ? "Declined" : s.label}</span>
-          </li>
-        ))}
+      <ol className="mt-5 space-y-2.5">
+        {STEPS.map((s) => {
+          const on = reached(s.key);
+          const declined = booking.tender_status === "declined" && s.key === "accepted";
+          return (
+            <li key={s.key} className="flex items-center gap-3">
+              <span className={`grid h-5 w-5 place-items-center rounded-[6px] border-2 transition-colors ${on ? "border-live bg-live text-white" : declined ? "border-red text-red" : "border-rule"}`}>
+                {on && (
+                  <svg viewBox="0 0 16 16" className="h-3 w-3" aria-hidden>
+                    <motion.path d="M3 8.5 L6.5 12 L13 4.5" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 0.35 }} />
+                  </svg>
+                )}
+              </span>
+              <span className={`text-[14.5px] ${on ? "font-semibold text-fg" : declined ? "text-red" : "text-muted"}`}>{declined ? "Declined" : s.label}</span>
+            </li>
+          );
+        })}
       </ol>
-      <div className="mt-4 flex items-center justify-between font-mono text-[11px] text-muted">
+      <div className="mt-5 flex items-center justify-between border-t border-rule pt-4 text-[13px] text-muted">
         <span className="inline-flex items-center gap-1.5">
-          <span className="rounded-[2px] bg-[#635BFF] px-1.5 py-px text-[10px] font-semibold text-white">stripe</span> test mode
+          <span className="rounded-[4px] bg-[#635BFF] px-1.5 py-px text-[11px] font-semibold text-white">stripe</span> test mode
         </span>
         {booking.tender_token && (
-          <Link href={`/tender/${booking.tender_token}`} target="_blank" className="text-sodium hover:underline">
+          <Link href={`/tender/${booking.tender_token}`} target="_blank" className="font-semibold text-stamp hover:underline">
             Open carrier view
           </Link>
         )}

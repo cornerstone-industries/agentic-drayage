@@ -39,7 +39,7 @@ export function LoginForm() {
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="mt-1.5 w-full rounded-[3px] border border-line bg-panel px-3 py-2.5 font-mono text-sm text-fg outline-none transition-colors placeholder:text-dim focus:border-sodium"
+          className="mt-1.5 w-full rounded-[12px] border border-rule bg-sheet px-4 py-3 text-[15px] text-fg outline-none transition-colors placeholder:text-dim focus:border-stamp"
           placeholder="you@company.com"
         />
       </label>
@@ -52,10 +52,10 @@ export function LoginForm() {
           required
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="mt-1.5 w-full rounded-[3px] border border-line bg-panel px-3 py-2.5 font-mono text-sm text-fg outline-none transition-colors focus:border-sodium"
+          className="mt-1.5 w-full rounded-[12px] border border-rule bg-sheet px-4 py-3 text-[15px] text-fg outline-none transition-colors focus:border-stamp"
         />
       </label>
-      {error && <p className="rounded-[3px] border border-alarm/40 bg-alarm/10 px-3 py-2 font-mono text-xs text-alarm">{error}</p>}
+      {error && <p className="rounded-[12px] border border-red/30 bg-red/5 px-3 py-2 text-[14px] text-red">{error}</p>}
       <button type="submit" className="btn-sodium w-full" disabled={loading}>
         {loading ? "Signing in..." : "Sign in"}
       </button>
@@ -69,7 +69,7 @@ export function LoginForm() {
       >
         Fill judge login
       </button>
-      <p className="font-mono text-[11px] leading-5 text-muted">
+      <p className="rounded-[12px] border border-dashed border-rule px-4 py-3 font-mono text-[12.5px] leading-6 text-muted">
         {JUDGE.email}
         <br />
         {JUDGE.password}

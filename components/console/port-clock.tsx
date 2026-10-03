@@ -15,8 +15,8 @@ export function PortClock() {
   }, []);
   const time = now?.toLocaleTimeString("en-US", { timeZone: "America/New_York", hour12: false }) ?? "--:--:--";
   return (
-    <span className="font-mono text-xs tabular-nums text-muted" title="Port of Charleston local time">
-      CHS <span className="text-fg">{time}</span>
+    <span className="text-[13px] tabular-nums text-muted" title="Port of Charleston local time">
+      Charleston <span className="font-mono font-medium text-fg">{time}</span>
     </span>
   );
 }

@@ -1,18 +1,18 @@
-const PILL: Record<string, { label: string; cls: string }> = {
-  standby: { label: "Standing by", cls: "border-line text-muted" },
-  queued: { label: "Dialing", cls: "border-line text-muted" },
-  ringing: { label: "Ringing", cls: "border-sodium text-sodium animate-ring-pulse" },
-  in_progress: { label: "Live", cls: "border-signal bg-signal/10 text-signal animate-live-glow" },
-  ended: { label: "Ended", cls: "border-line text-muted" },
-  no_answer: { label: "No answer", cls: "border-alarm/60 text-alarm" },
-  failed: { label: "Failed", cls: "border-alarm/60 text-alarm" },
+const PILL: Record<string, { label: string; cls: string; dot: string }> = {
+  standby: { label: "Standing by", cls: "text-muted", dot: "bg-dim" },
+  queued: { label: "Dialing", cls: "text-muted", dot: "bg-steel" },
+  ringing: { label: "Ringing", cls: "text-crane", dot: "bg-crane animate-pulse" },
+  in_progress: { label: "On the line", cls: "text-live", dot: "bg-live animate-live-dot" },
+  ended: { label: "Hung up", cls: "text-muted", dot: "bg-dim" },
+  no_answer: { label: "No answer", cls: "text-red", dot: "bg-red" },
+  failed: { label: "Call failed", cls: "text-red", dot: "bg-red" },
 };
 
 export function StatusPill({ status }: { status: string }) {
   const p = PILL[status] ?? PILL.queued;
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 font-mono text-[11px] ${p.cls}`}>
-      <span className={`h-1.5 w-1.5 rounded-full ${status === "in_progress" ? "bg-signal" : status === "ringing" ? "bg-sodium" : "bg-current"}`} />
+    <span className={`inline-flex items-center gap-2 font-cond text-[13px] font-bold tracking-[0.02em] ${p.cls}`}>
+      <span className={`h-2 w-2 rounded-full ${p.dot}`} />
       {p.label}
     </span>
   );

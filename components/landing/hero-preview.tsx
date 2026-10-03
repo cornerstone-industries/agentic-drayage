@@ -5,7 +5,10 @@ import { useEffect, useMemo, useState } from "react";
 import { buildScripts, speakingMs, type DispatcherScript } from "@/lib/replay/script";
 import { computeQuoteTotals, formatUsd, type Accessorial } from "@/lib/money";
 import { addDays, shortDate } from "@/lib/dates";
-import { Waveform } from "@/components/callwall/waveform";
+import { VoiceTrace } from "@/components/callwall/voice-trace";
+import { Odometer } from "@/components/freight/odometer";
+import { RubberStamp } from "@/components/freight/rubber-stamp";
+import { ContainerDoor } from "@/components/freight/container-door";
 import { StatusPill } from "@/components/callwall/status-pill";
 
 type Fields = Record<string, unknown>;
@@ -87,78 +90,117 @@ export function HeroPreview() {
 
   return (
     <div className="relative">
-      <div className="mb-3 flex items-center justify-between font-mono text-[11px] text-muted">
-        <span className="stencil text-xs text-fg">PHGU 482913-7</span>
-        <span className="rounded-[3px] border border-sodium/40 px-2 py-0.5 text-sodium">Replay of a recorded quote run</span>
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <ContainerDoor number="PHGU4829137" size="40HC" compact />
+          <div>
+            <div className="stencil text-[20px] leading-none text-fg">PHGU 482913-7</div>
+            <div className="mt-1 text-[12.5px] text-muted">Wando Welch to Fairburn, GA</div>
+          </div>
+        </div>
+        <span className="text-[13px] font-semibold text-crane">Replay of a recorded quote run</span>
       </div>
-      <div className="grid gap-2.5 sm:grid-cols-3">
-        {channels.map((c, i) => {
-          const isWinner = winner?.script.key === c.script.key;
-          return (
-            <motion.div
-              key={c.script.key}
-              layout
-              className={`panel flex flex-col rounded-[4px] p-3 transition-shadow duration-500 ${isWinner ? "shadow-[0_0_0_1.5px_var(--sodium),0_0_36px_-6px_rgba(255,176,32,0.5)]" : ""}`}
-            >
-              <div className="flex items-center justify-between">
-                <span className="font-mono text-[10px] text-dim">CH {i + 1}</span>
-                <StatusPill status={c.status} />
-              </div>
-              <div className="mt-2 min-h-[2.5em] font-display text-[15px] font-extrabold leading-tight font-semiwide">{c.script.providerName}</div>
-              <div className="mt-2">
-                <Waveform speaking={(c.speaking?.role as "assistant" | "user") ?? null} live={c.status === "in_progress"} />
-              </div>
-              <div className="mt-2 h-[84px] overflow-hidden border-y border-line py-1.5">
-                <AnimatePresence initial={false}>
-                  {[...c.said, ...(c.speaking ? [{ ...c.speaking, text: c.speaking.text.slice(0, Math.max(1, Math.round(((t - c.speaking.start) / (c.speaking.end - c.speaking.start)) * c.speaking.text.length))), partial: true }] : [])].slice(-3).map((l) => (
-                    <motion.p
-                      key={`l-${l.start}`}
-                      layout
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0 }}
-                      className={`truncate text-[11.5px] leading-[1.6] ${l.role === "assistant" ? "text-muted" : "text-fg"} ${l.fields ? "border-l-2 border-sodium pl-1.5" : ""}`}
-                    >
-                      {l.text}
-                    </motion.p>
-                  ))}
-                </AnimatePresence>
-              </div>
-              <dl className="mt-2 space-y-1 font-mono text-[11.5px]">
-                {[
-                  ["Linehaul", c.fields.linehaul_cents != null ? formatUsd(c.fields.linehaul_cents as number) : null],
-                  ["Pickup", c.fields.earliest_pickup ? shortDate(c.fields.earliest_pickup as string) : null],
-                  ["All-in", c.totals.all_in_cents != null && c.fields.earliest_pickup ? formatUsd(c.totals.all_in_cents) : null],
-                ].map(([k, v]) => (
-                  <div key={k as string} className="flex justify-between">
-                    <dt className="text-muted">{k}</dt>
-                    <dd>
-                      <AnimatePresence mode="popLayout" initial={false}>
-                        {v ? (
-                          <motion.span
-                            key={v as string}
-                            className={`inline-block ${k === "Pickup" && (c.totals.projected_demurrage_cents ?? 0) > 0 ? "text-alarm" : "text-fg"}`}
-                            initial={{ scale: 1.8, rotate: -8, opacity: 0 }}
-                            animate={{ scale: 1, rotate: 0, opacity: 1 }}
-                            transition={{ type: "spring", stiffness: 520, damping: 20 }}
-                          >
-                            {v}
-                          </motion.span>
-                        ) : (
-                          <span className="text-dim">--</span>
-                        )}
-                      </AnimatePresence>
-                    </dd>
+      <div className="relative pt-2">
+        <div className="absolute left-[-10px] right-[-10px] top-2 z-10 h-[9px] rounded-full bg-[linear-gradient(180deg,#D9DDE1,#8E959D_55%,#6A7179)] shadow-[0_3px_6px_-2px_rgba(0,0,0,0.35)]" aria-hidden />
+        <div className="grid gap-4 sm:grid-cols-3">
+          {channels.map((c, i) => {
+            const isWinner = winner?.script.key === c.script.key;
+            return (
+              <motion.div key={c.script.key} layout transition={{ type: "spring", stiffness: 200, damping: 24 }} className="relative pt-4">
+                <svg className="absolute left-1/2 top-[-4px] z-20 -translate-x-1/2" width="44" height="24" viewBox="0 0 54 30" aria-hidden>
+                  <rect x="9" y="1" width="36" height="20" rx="4" fill="#2A2F35" />
+                  <rect x="12" y="4" width="30" height="6" rx="2" fill="#4A5159" />
+                  <path d="M17 21 v7 M37 21 v7" stroke="#2A2F35" strokeWidth="3" strokeLinecap="round" />
+                </svg>
+                <div
+                  className={`relative origin-top overflow-hidden rounded-[16px] border bg-sheet text-left transition-[box-shadow,transform,border-color] duration-500 ${
+                    c.status === "ringing" ? "animate-ring" : ""
+                  } ${isWinner ? "-translate-y-1 border-fg shadow-[0_2px_0_#121417,0_24px_50px_-26px_rgba(18,20,23,0.55)]" : "border-rule shadow-[0_14px_36px_-26px_rgba(18,20,23,0.45)]"}`}
+                >
+                  <div className="h-1.5" style={{ background: ["#121417", "#F2C230", "#EE86A4"][i] }} />
+                  <div className="px-4 pt-3">
+                    <StatusPill status={c.status} />
+                    <div className="mt-2 font-cond text-[19px] font-bold leading-tight text-fg">{c.script.providerName}</div>
                   </div>
-                ))}
-              </dl>
-              {allDone && (c.totals.projected_demurrage_cents ?? 0) > 0 && (
-                <p className="mt-2 font-mono text-[10.5px] text-alarm">Misses LFD: +{formatUsd(c.totals.projected_demurrage_cents)}</p>
-              )}
-              {isWinner && <p className="mt-2 font-mono text-[10.5px] text-sodium">Recommended</p>}
-            </motion.div>
-          );
-        })}
+                  <div className="mx-4 mt-2 rounded-[8px] border border-rule bg-[linear-gradient(rgba(36,83,214,0.07)_1px,transparent_1px),linear-gradient(90deg,rgba(36,83,214,0.07)_1px,transparent_1px)] bg-[size:10px_10px]">
+                    <VoiceTrace speaking={(c.speaking?.role as "assistant" | "user") ?? null} live={c.status === "in_progress"} />
+                  </div>
+                  <div className="mt-3 h-[88px] overflow-hidden border-y border-rule bg-panel-2 px-4 py-2">
+                    <AnimatePresence initial={false}>
+                      {[...c.said, ...(c.speaking ? [{ ...c.speaking, text: c.speaking.text.slice(0, Math.max(1, Math.round(((t - c.speaking.start) / (c.speaking.end - c.speaking.start)) * c.speaking.text.length))), partial: true }] : [])]
+                        .slice(-3)
+                        .map((l) => (
+                          <motion.p
+                            key={`l-${l.start}`}
+                            layout
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0 }}
+                            className={`truncate text-[12.5px] leading-[1.6] ${l.role === "assistant" ? "text-muted" : "text-fg"}`}
+                          >
+                            <span className={`mr-1.5 text-[10.5px] font-semibold ${l.role === "assistant" ? "text-stamp" : "text-live"}`}>{l.role === "assistant" ? "PortCall" : "Dispatch"}</span>
+                            <span className="marker" data-on={Boolean(l.fields) && !("partial" in l)}>
+                              {l.text}
+                            </span>
+                          </motion.p>
+                        ))}
+                    </AnimatePresence>
+                  </div>
+                  <dl className="space-y-1.5 px-4 py-3 text-[13px]">
+                    {[
+                      ["Linehaul", c.fields.linehaul_cents != null ? formatUsd(c.fields.linehaul_cents as number) : null],
+                      ["Pickup", c.fields.earliest_pickup ? shortDate(c.fields.earliest_pickup as string) : null],
+                    ].map(([k, v]) => (
+                      <div key={k as string} className="flex items-baseline gap-2">
+                        <dt className="text-muted">{k}</dt>
+                        <span className="mb-[3px] flex-1 border-b border-dotted border-dim/70" />
+                        <dd>
+                          <AnimatePresence mode="popLayout" initial={false}>
+                            {v ? (
+                              <motion.span
+                                key={v as string}
+                                className={`inline-block font-mono font-semibold ${k === "Pickup" && (c.totals.projected_demurrage_cents ?? 0) > 0 ? "text-red" : "text-stamp"}`}
+                                initial={{ scale: 1.9, rotate: -10, opacity: 0 }}
+                                animate={{ scale: 1, rotate: 0, opacity: 1 }}
+                                transition={{ type: "spring", stiffness: 600, damping: 22 }}
+                              >
+                                {v}
+                              </motion.span>
+                            ) : (
+                              <span className="text-dim">–</span>
+                            )}
+                          </AnimatePresence>
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
+                  <div className="flex items-end justify-between border-t border-rule px-4 pb-3.5 pt-2.5">
+                    <span className="pb-0.5 text-[13px] font-semibold text-fg">All-in</span>
+                    {c.totals.all_in_cents != null && c.fields.earliest_pickup ? (
+                      <Odometer value={formatUsd(c.totals.all_in_cents)} className="text-[22px] text-fg" />
+                    ) : (
+                      <span className="font-mono text-[22px] text-dim">$ –</span>
+                    )}
+                  </div>
+                  {allDone && (c.totals.projected_demurrage_cents ?? 0) > 0 && (
+                    <div className="px-4 pb-3">
+                      <RubberStamp size="sm" rotate={-2}>
+                        Misses LFD +{formatUsd(c.totals.projected_demurrage_cents)}
+                      </RubberStamp>
+                    </div>
+                  )}
+                  {isWinner && (
+                    <div className="absolute right-3 top-[64px]">
+                      <RubberStamp size="md" rotate={-11}>
+                        Awarded
+                      </RubberStamp>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

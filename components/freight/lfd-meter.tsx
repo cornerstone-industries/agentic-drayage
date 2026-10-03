@@ -56,38 +56,38 @@ export function LfdMeter({
   const fraction = outOfTerminal ? 1 : Math.min(1, Math.max(0, (t - start) / window));
   const overdue = !outOfTerminal && t > end;
   const atSea = t < start;
-  const color = outOfTerminal ? "var(--signal)" : overdue || fraction > 0.85 ? "var(--alarm)" : fraction > 0.55 ? "var(--sodium)" : "var(--signal)";
+  const color = outOfTerminal ? "rgb(var(--live-rgb))" : overdue || fraction > 0.85 ? "rgb(var(--red-rgb))" : fraction > 0.55 ? "rgb(var(--crane-rgb))" : "rgb(var(--live-rgb))";
   const freeDays = Math.max(1, Math.round(window / DAY));
   const accrued = overdue ? ((t - end) / DAY) * demurragePerDayCents : 0;
 
   return (
-    <div className={compact ? "w-full" : "w-full max-w-sm"}>
+    <div className={compact ? "w-full" : "w-full rounded-[16px] border border-rule bg-sheet p-4"}>
       <div className="flex items-baseline justify-between gap-3">
-        <span className="tick-label">
-          LFD <span className="text-fg">{shortDate(lastFreeDay)}</span>
+        <span className={compact ? "text-[12.5px] text-muted" : "text-[13px] text-muted"}>
+          Last free day <span className="font-semibold text-fg">{shortDate(lastFreeDay)}</span>
         </span>
-        <span className={`font-mono text-xs tabular-nums ${overdue ? "text-alarm" : outOfTerminal ? "text-signal" : "text-fg"}`}>
-          {outOfTerminal ? "Out of terminal" : overdue ? "Past LFD" : now == null ? "--" : countdown(end - t)}
+        <span className={`font-mono tabular-nums ${compact ? "text-[12.5px]" : "text-[17px] font-semibold"} ${overdue ? "text-red" : outOfTerminal ? "text-live" : "text-fg"}`}>
+          {outOfTerminal ? "Out of terminal" : overdue ? "Past LFD" : now == null ? "–" : countdown(end - t)}
         </span>
       </div>
-      <div className="relative mt-1.5 h-1.5 overflow-hidden rounded-[1px] bg-line" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(fraction * 100)} aria-label="Free time used">
-        <div className="absolute inset-y-0 left-0 transition-[width,background-color] duration-700" style={{ width: `${fraction * 100}%`, background: color, boxShadow: `0 0 10px ${color}` }} />
+      <div className={`relative overflow-hidden rounded-full bg-rule ${compact ? "mt-1.5 h-1.5" : "mt-3 h-2.5"}`} role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(fraction * 100)} aria-label="Free time used">
+        <div className="absolute inset-y-0 left-0 rounded-full transition-[width,background-color] duration-700" style={{ width: `${Math.max(fraction * 100, outOfTerminal ? 100 : 2)}%`, background: color }} />
         {Array.from({ length: freeDays - 1 }, (_, i) => (
-          <span key={i} className="absolute inset-y-0 w-px bg-ink" style={{ left: `${((i + 1) / freeDays) * 100}%` }} />
+          <span key={i} className="absolute inset-y-0 w-[2px] bg-sheet" style={{ left: `${((i + 1) / freeDays) * 100}%` }} />
         ))}
       </div>
       {!compact && (
-        <div className="mt-1.5 font-mono text-[11px] text-muted">
+        <div className="mt-2.5 text-[12.5px] text-muted">
           {outOfTerminal ? (
             "No demurrage risk"
           ) : overdue ? (
-            <span className="text-alarm">
-              Accruing {formatUsd(demurragePerDayCents)}/day est. {formatUsd(Math.round(accrued))} so far
+            <span className="font-semibold text-red">
+              Accruing {formatUsd(demurragePerDayCents)}/day (est.), {formatUsd(Math.round(accrued))} so far
             </span>
           ) : atSea ? (
-            <>Free time starts at discharge. {formatUsd(demurragePerDayCents)}/day est. after LFD</>
+            <>Free time starts at discharge. After that, {formatUsd(demurragePerDayCents)}/day (est.)</>
           ) : (
-            <>{formatUsd(demurragePerDayCents)}/day at risk after LFD (estimated)</>
+            <>{formatUsd(demurragePerDayCents)}/day at risk after the last free day (est.)</>
           )}
         </div>
       )}
