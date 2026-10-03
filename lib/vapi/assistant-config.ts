@@ -40,17 +40,17 @@ export type AssistantConfigArgs = {
 export function buildAssistantConfig({ webhookUrl, webhookSecret }: AssistantConfigArgs) {
   return {
     name: "PortCall quote caller",
-    // Haiku 4.5 is the fastest Claude in Vapi's anthropic model list.
+    // Gemini runs the conversation (fast, Google multimodal); Claude still does extraction and ranking.
     model: {
-      provider: "anthropic",
-      model: "claude-haiku-4-5-20251001",
+      provider: "google",
+      model: "gemini-3.5-flash",
       temperature: 0.3,
       maxTokens: 120,
       messages: [{ role: "system", content: SYSTEM_PROMPT }],
       tools: [{ type: "endCall" }],
     },
-    // Cartesia Sonic is the lowest-latency voice in Vapi; Vapi's own voice averaged ~650ms per reply.
-    voice: { provider: "cartesia", model: "sonic-3", voiceId: "d46abd1d-2d02-43e8-819f-51fb652c1c61" },
+    // Cartesia Sonic is the lowest-latency voice in Vapi; "Esther", a gentle Southern American voice.
+    voice: { provider: "cartesia", model: "sonic-3", voiceId: "1a0c6bb2-bc1b-476e-8d45-56a66300362b" },
     transcriber: { provider: "deepgram", model: "nova-3", language: "en" },
     // Turn latency on the first live call averaged 3.3s, mostly waiting to decide the dispatcher had
     // finished. These cut the default 1.5s no-punctuation wait while giving spoken numbers a beat.
