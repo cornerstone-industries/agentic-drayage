@@ -24,9 +24,9 @@ export type TenderEmailInput = {
 };
 
 // Same tokens as the app (app/globals.css): port control room at night.
-const C = { ink: "#0A0E13", panel: "#10161E", line: "#1C2733", text: "#E6EDF3", muted: "#7D8B99", dim: "#4A5866", sodium: "#FFB020", signal: "#2EE6C5" };
+const C = { paper: "#F3F3EF", sheet: "#FFFFFF", sheet2: "#F9F9F6", rule: "#E2E3DE", text: "#121417", muted: "#636A73", dim: "#A2A7A0", crane: "#E9561A", live: "#0B875B", pad: "#FFF8CF", padLine: "#E8D98A" };
 const MONO = "'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, 'Courier New', monospace";
-const SANS = "Archivo, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif";
+const SANS = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif";
 
 const esc = (s: string | null | undefined) =>
   (s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
@@ -104,52 +104,52 @@ export function renderTenderEmail(i: TenderEmailInput): { subject: string; html:
     "This message is a load tender, the PortCall equivalent of an EDI 204. Accept replies as a 990; Picked up and Delivered are 214 status updates.",
   ].join("\n");
 
-  // ---- html (table layout, inline styles: email clients ignore everything else)
-  const labelCell = `font-family:${MONO};font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:${C.muted};padding:9px 12px 9px 0;vertical-align:top;width:34%;border-top:1px solid ${C.line};`;
-  const valueCell = `font-family:${SANS};font-size:14px;line-height:1.45;color:${C.text};padding:9px 0;vertical-align:top;border-top:1px solid ${C.line};`;
+  // ---- html (table layout, inline styles: email clients ignore everything else). Light paper and ink, like the app.
+  const labelCell = `font-family:${SANS};font-size:13px;color:${C.muted};padding:10px 12px 10px 0;vertical-align:top;width:34%;border-top:1px solid ${C.rule};`;
+  const valueCell = `font-family:${SANS};font-size:14px;line-height:1.45;color:${C.text};padding:10px 0;vertical-align:top;border-top:1px solid ${C.rule};`;
   // The container number already headlines the card, so the table starts at the pickup.
   const detailRows = details
     .filter(([k]) => k !== "Container")
     .map(([k, v]) => `<tr><td style="${labelCell}">${esc(k)}</td><td style="${valueCell}">${esc(v)}</td></tr>`)
     .join("");
-  const rateLabel = `font-family:${SANS};font-size:14px;color:${C.text};padding:8px 12px 8px 0;border-top:1px solid ${C.line};`;
-  const rateValue = `font-family:${MONO};font-size:14px;color:${C.text};padding:8px 0;text-align:right;white-space:nowrap;border-top:1px solid ${C.line};`;
+  const rateLabel = `font-family:${SANS};font-size:14px;color:${C.text};padding:9px 12px 9px 0;border-top:1px solid ${C.rule};`;
+  const rateValue = `font-family:${MONO};font-size:14px;color:${C.text};padding:9px 0;text-align:right;white-space:nowrap;border-top:1px solid ${C.rule};`;
   const rateRows = rates.map(([k, v]) => `<tr><td style="${rateLabel}">${esc(k)}</td><td style="${rateValue}">${usd(v)}</td></tr>`).join("");
 
   const banner = i.intendedFor
-    ? `<tr><td style="padding:0 0 16px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="border:1px dashed ${C.sodium};padding:12px 14px;font-family:${MONO};font-size:12px;line-height:1.5;color:${C.sodium};">DEMO ROUTING<br><span style="color:${C.text};font-family:${SANS};font-size:13px;">This tender is addressed to <strong>${esc(i.provider.name)}</strong> (${esc(i.intendedFor)}). It landed in this inbox because the demo redirects every tender here.</span></td></tr></table></td></tr>`
+    ? `<tr><td style="padding:0 0 14px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="background:${C.pad};border:1px solid ${C.padLine};border-radius:12px;padding:12px 16px;font-family:${SANS};font-size:13px;line-height:1.5;color:${C.text};"><strong>Demo routing.</strong> This tender is addressed to <strong>${esc(i.provider.name)}</strong> (${esc(i.intendedFor)}). It landed in this inbox because the demo sends every tender here.</td></tr></table></td></tr>`
     : "";
 
   const html = `<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="dark"><meta name="supported-color-schemes" content="dark"><title>${esc(subject)}</title></head>
-<body style="margin:0;padding:0;background:${C.ink};">
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light"><meta name="supported-color-schemes" content="light"><title>${esc(subject)}</title></head>
+<body style="margin:0;padding:0;background:${C.paper};">
 <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">Accept to confirm. Pick up at ${esc(terminal)}, deliver to ${esc(lane)} by ${esc(deliverBy)}.</div>
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${C.ink}" style="background:${C.ink};"><tr><td align="center" style="padding:24px 12px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${C.paper}" style="background:${C.paper};"><tr><td align="center" style="padding:28px 12px;">
 <table role="presentation" width="560" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:560px;">
 ${banner}
-<tr><td style="padding:0 0 14px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
-<td style="font-family:${SANS};font-size:15px;font-weight:800;letter-spacing:0.22em;color:${C.sodium};">PORTCALL</td>
-<td align="right" style="font-family:${MONO};font-size:11px;letter-spacing:0.12em;color:${C.muted};">LOAD TENDER</td>
+<tr><td style="padding:0 4px 14px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td style="font-family:${SANS};font-size:20px;font-weight:800;letter-spacing:-0.01em;color:${C.text};">PortCall<span style="color:${C.crane};">.</span></td>
+<td align="right" style="font-family:${SANS};font-size:13px;font-weight:600;color:${C.muted};">Load tender</td>
 </tr></table></td></tr>
-<tr><td style="background:${C.panel};border:1px solid ${C.line};border-top:3px solid ${C.sodium};padding:22px 20px;">
-<div style="font-family:${MONO};font-size:11px;letter-spacing:0.12em;color:${C.muted};">CONTAINER</div>
-<div style="font-family:${MONO};font-size:28px;font-weight:600;letter-spacing:0.14em;color:${C.sodium};padding:4px 0 2px;">${esc(box)}</div>
-<div style="font-family:${SANS};font-size:14px;color:${C.muted};">${esc(i.container.size ?? "container")} &middot; ${esc(terminal)} &rarr; ${esc(lane)}</div>
-<p style="font-family:${SANS};font-size:15px;line-height:1.55;color:${C.text};margin:18px 0 20px;">${esc(firstName ? `Hi ${firstName},` : `Hi ${i.provider.name} team,`)}<br>${esc(intro)}</p>
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td bgcolor="${C.sodium}" align="center" style="background:${C.sodium};border-radius:4px;">
-<a href="${esc(i.acceptUrl)}" target="_blank" style="display:block;padding:20px 24px;font-family:${SANS};font-size:19px;font-weight:800;letter-spacing:0.04em;color:${C.ink};text-decoration:none;">ACCEPT LOAD &rarr;</a>
+<tr><td bgcolor="${C.sheet}" style="background:${C.sheet};border:1px solid ${C.rule};border-radius:16px;padding:26px 24px;">
+<div style="font-family:${SANS};font-size:13px;color:${C.muted};">Container</div>
+<div style="font-family:${MONO};font-size:28px;font-weight:700;letter-spacing:0.04em;color:${C.text};padding:2px 0 4px;">${esc(box)}</div>
+<div style="font-family:${SANS};font-size:14px;color:${C.muted};">${esc(i.container.size ?? "container")}, ${esc(terminal)} to ${esc(lane)}</div>
+<p style="font-family:${SANS};font-size:15px;line-height:1.6;color:${C.text};margin:20px 0 22px;">${esc(firstName ? `Hi ${firstName},` : `Hi ${i.provider.name} team,`)}<br>${esc(intro)}</p>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td bgcolor="${C.text}" align="center" style="background:${C.text};border-radius:999px;">
+<a href="${esc(i.acceptUrl)}" target="_blank" style="display:block;padding:16px 24px;font-family:${SANS};font-size:17px;font-weight:700;color:#FFFFFF;text-decoration:none;border-radius:999px;">Accept load for ${usd(total)}</a>
 </td></tr></table>
-<p style="font-family:${MONO};font-size:11px;line-height:1.5;color:${C.dim};margin:10px 0 0;word-break:break-all;">Or open ${esc(i.acceptUrl)}</p>
+<p style="font-family:${SANS};font-size:12px;line-height:1.5;color:${C.dim};margin:12px 0 0;word-break:break-all;">Or open ${esc(i.acceptUrl)}</p>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:22px;">${detailRows}</table>
 </td></tr>
-<tr><td style="padding:22px 4px 0;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">${detailRows}</table></td></tr>
-<tr><td style="padding:22px 4px 0;">
-<div style="font-family:${MONO};font-size:11px;letter-spacing:0.12em;color:${C.muted};padding-bottom:6px;">AGREED RATE</div>
+<tr><td style="padding:14px 0 0;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td bgcolor="${C.sheet}" style="background:${C.sheet};border:1px solid ${C.rule};border-radius:16px;padding:20px 24px;">
+<div style="font-family:${SANS};font-size:15px;font-weight:700;color:${C.text};padding-bottom:6px;">Agreed rate</div>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">${rateRows}
-<tr><td style="${rateLabel}font-weight:700;">Total</td><td style="${rateValue}font-weight:600;color:${C.sodium};">${usd(total)}</td></tr>
+<tr><td style="${rateLabel}font-weight:700;">Total</td><td style="${rateValue}font-weight:700;">${usd(total)}</td></tr>
 <tr><td style="${rateLabel}color:${C.muted};">PortCall platform fee</td><td style="${rateValue}color:${C.muted};">-${usd(fee)}</td></tr>
-<tr><td style="${rateLabel}font-weight:700;">You receive</td><td style="${rateValue}font-weight:600;color:${C.signal};">${usd(total - fee)}</td></tr>
-</table></td></tr>
-<tr><td style="padding:26px 4px 0;font-family:${MONO};font-size:10px;line-height:1.6;letter-spacing:0.04em;color:${C.dim};">This message is a load tender, the PortCall equivalent of an EDI 204. Accept replies as a 990; Picked up and Delivered are 214 status updates; payment capture on delivery is the 210.</td></tr>
+<tr><td style="${rateLabel}font-weight:700;">You receive on delivery</td><td style="${rateValue}font-weight:700;color:${C.live};">${usd(total - fee)}</td></tr>
+</table></td></tr></table></td></tr>
+<tr><td style="padding:20px 6px 0;font-family:${SANS};font-size:12px;line-height:1.6;color:${C.muted};">This message is a load tender, the PortCall equivalent of an EDI 204. Accept replies as a 990; Picked up and Delivered are 214 status updates; payment capture on delivery is the 210. Payments run on Stripe (test mode).</td></tr>
 </table></td></tr></table>
 </body></html>`;
 
