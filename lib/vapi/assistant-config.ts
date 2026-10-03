@@ -10,7 +10,7 @@ You are ON a live phone call right now. The call is already connected: the perso
 The move: one {{size}}, container {{containerNumber}}, at {{terminal}}, Port of Charleston. Available {{eta}}, last free day {{lastFreeDay}}. Delivering to {{destination}}, needs to be there by {{deliverBy}}.
 
 Ask these in order, one short question per turn, the way dispatchers actually talk:
-1. One quick setup line, then the rate: "It's a forty-foot high cube at {{terminal}}, available {{eta}}, going to {{destination}}. What's your rate on that?" Do not read out the container number unless they ask for it.
+1. One short setup line, then the rate: "Forty-foot high cube at {{terminal}}, going to {{destination}}. What's your rate?" Do not read out the container number or dates unless they ask.
 2. "Does that include fuel and chassis?" If either is extra, get the amount (fuel as a percent or dollars; chassis per day and how many days).
 3. "Any other charges? Pre-pull, storage, wait time?"
 4. "When can you pull it, and can you have it there by {{deliverBy}}?"
@@ -24,8 +24,8 @@ Rules:
 - If what you heard is a fragment, sounds like background conversation, or does not answer your question, briefly ask your current question again. Do not react to it.
 - Do not repeat back each number as you go.
 - If a number sounds unusual, ask once to confirm it, then accept their answer.
-- To finish, say it all in ONE reply: the full quote in one short sentence, then "We'll confirm by email shortly. Thanks, have a good one. Goodbye." The call hangs up automatically after you say "Goodbye", so always end your final reply with that word and never use it earlier.
-- Read the quote back only once. If they answer the readback with "no", "that's it" or similar, do not repeat it: just say "Great, we'll confirm by email shortly. Thanks, have a good one. Goodbye."
+- To finish, say it all in ONE reply: a short readback of only the numbers (for example "So eight hundred all in, pulling Friday, there by the fifteenth."), then "We'll confirm by email. Thanks, goodbye, take care." The call hangs up automatically after "take care", so end your final reply with exactly those words and never say them earlier.
+- Read the quote back only once. If they answer the readback with "no", "that's it" or similar, do not repeat it: just say "Great, we'll confirm by email. Thanks, goodbye, take care."
 - If they answer "when can you pull it" without a date, ask once: "What day can you pull it?"
 - Do not commit to booking. Keep the whole call under 60 seconds.
 
@@ -45,10 +45,11 @@ export type AssistantConfigArgs = {
 export function buildAssistantConfig({ webhookUrl, webhookSecret }: AssistantConfigArgs) {
   return {
     name: "PortCall quote caller",
-    // Claude Haiku answered in ~360ms on test calls; Gemini 3.5 Flash in Vapi took 700-975ms and twice never replied.
+    // The voice turn is latency-bound: GPT-4o-mini replies faster than Claude Haiku (~480ms on the phone).
+    // Claude still does the thinking: live extraction and ranking (lib/ai/claude.ts).
     model: {
-      provider: "anthropic",
-      model: "claude-haiku-4-5-20251001",
+      provider: "openai",
+      model: "gpt-4o-mini",
       temperature: 0.3,
       maxTokens: 120,
       messages: [{ role: "system", content: SYSTEM_PROMPT }],
@@ -68,8 +69,8 @@ export function buildAssistantConfig({ webhookUrl, webhookSecret }: AssistantCon
     stopSpeakingPlan: { numWords: 2, voiceSeconds: 0.3, backoffSeconds: 0.8 },
     firstMessage: FIRST_MESSAGE,
     firstMessageMode: "assistant-speaks-first",
-    // Hang up only after the closing line has been spoken; calling endCall cut the goodbye off on the phone.
-    endCallPhrases: ["goodbye"],
+    // The phone leg lags ~0.5s behind, so the hang-up clips the tail: end on "take care" so "goodbye" is heard.
+    endCallPhrases: ["take care"],
     maxDurationSeconds: 180,
     backgroundSound: "off",
     // `transcript` is not in Vapi's default serverMessages and this list replaces the default, so name every type the webhook handles.
