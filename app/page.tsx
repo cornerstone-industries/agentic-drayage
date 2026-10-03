@@ -125,7 +125,7 @@ export default function Landing() {
           </div>
         </section>
 
-        <section id="agents" className="mx-auto grid max-w-[1240px] gap-14 px-4 py-20 sm:px-6 lg:grid-cols-2">
+        <section id="agents" className="mx-auto grid max-w-[1240px] grid-cols-1 gap-14 px-4 py-20 sm:px-6 lg:grid-cols-2">
           <div>
             <h2 className="font-cond text-[44px] font-extrabold leading-[1] tracking-[-0.02em] text-fg">Built for agents</h2>
             <p className="mt-5 max-w-lg text-[17px] leading-relaxed text-muted">

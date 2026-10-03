@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 /** Signal P: a stack of three boxes for the stem, the bowl ringing out like a call. */
-export function Wordmark({ href = "/" }: { href?: string }) {
+export function Wordmark({ href = "/", hideTextOnMobile = false }: { href?: string; hideTextOnMobile?: boolean }) {
   return (
     <Link href={href} className="group inline-flex items-center gap-2.5" aria-label="PortCall home">
       <svg width="20" height="26" viewBox="10 3 40 53" aria-hidden="true" className="shrink-0">
@@ -11,7 +11,7 @@ export function Wordmark({ href = "/" }: { href?: string }) {
         <path d="M24 14A11 11 0 0 1 24 36" fill="none" className="stroke-fg" strokeWidth={6} />
         <path d="M27 6.2A19 19 0 0 1 27 43.8" fill="none" className="stroke-crane" strokeWidth={4.5} strokeLinecap="round" />
       </svg>
-      <span className="font-cond text-[21px] font-extrabold tracking-[-0.02em] text-fg">PortCall</span>
+      <span className={`font-cond text-[21px] font-extrabold tracking-[-0.02em] text-fg ${hideTextOnMobile ? "hidden sm:inline" : ""}`}>PortCall</span>
     </Link>
   );
 }

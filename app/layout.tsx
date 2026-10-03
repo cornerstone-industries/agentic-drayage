@@ -22,7 +22,7 @@ export const viewport: Viewport = { themeColor: "#EEF0EB" };
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className={`${stencil.variable} ${barlow.variable} ${barlowCond.variable} ${plexMono.variable}`}>
-      <body className="font-sans antialiased">
+      <body className="font-sans antialiased overflow-x-clip">
         <InkFilters />
         <MotionProvider>{children}</MotionProvider>
       </body>
