@@ -442,7 +442,9 @@ function BookingStatus({
       </div>
       <div className="mt-1 font-cond text-[26px] font-bold leading-tight text-fg">{providerName}</div>
       <div className="mt-1 font-mono text-[30px] font-semibold text-fg">{formatUsd(booking.amount_cents)}</div>
-      <div className="text-[12.5px] text-muted">includes {formatUsd(booking.platform_fee_cents)} platform fee</div>
+      <div className="text-[12.5px] text-muted">
+        {formatUsd(booking.amount_cents - booking.platform_fee_cents)} {booking.payment_status === "captured" ? "paid" : "on delivery"} to {providerName} · {formatUsd(booking.platform_fee_cents)} platform fee
+      </div>
       <div className="absolute right-5 top-[92px]">
         <PaymentStamp status={booking.payment_status} />
       </div>
