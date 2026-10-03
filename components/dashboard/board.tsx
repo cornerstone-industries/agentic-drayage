@@ -159,7 +159,14 @@ export function Board({
 
   const byLfd = (a: BoardRow, b: BoardRow) => (a.container.last_free_day ?? "9999").localeCompare(b.container.last_free_day ?? "9999");
   const grouped = GROUPS.map((g) => ({ ...g, rows: rows.filter((r) => groupOf(r) === g.key).sort(byLfd) })).filter((g) => g.rows.length);
-  const inMotion = rows.filter((r) => r.container.status !== "delivered").length;
+  const needs = rows.filter((r) => groupOf(r) === "needs").length;
+  const heldCents = rows.reduce((sum, r) => sum + (r.booking?.payment_status === "authorized" ? r.booking.amount_cents : 0), 0);
+  const lateCents = now == null ? 0 : rows.reduce((sum, r) => sum + lateFeesCents(r.container, now, demurragePerDayCents), 0);
+  // Delivered starts folded away, but a box delivered while you watch opens it so the moment is visible.
+  const doneCount = rows.filter((r) => groupOf(r) === "done").length;
+  const [initialDone] = useState(doneCount);
+  const [showDonePref, setShowDonePref] = useState<boolean | null>(null);
+  const showDone = showDonePref ?? doneCount > initialDone;
 
   return (
     <div>
@@ -171,11 +178,17 @@ export function Board({
             the lane on the phone at once.
           </p>
         </div>
-        <p className="max-w-sm text-[15px] leading-relaxed text-muted xl:text-right">
-          <span className="font-semibold text-fg">{inMotion} containers in motion.</span> Auto-quote is{" "}
-          {autoQuote == null ? "off" : `on, ${autoQuote} days before arrival`}.{" "}
-          {autoBookLimitCents == null ? "Every booking waits for you." : `Agents can book up to ${formatUsd(autoBookLimitCents)} on their own.`}
-        </p>
+        <div className="w-full sm:w-auto">
+          <dl className="grid grid-cols-3 gap-px overflow-hidden rounded-[16px] border border-rule bg-rule shadow-[0_12px_32px_-24px_rgba(18,20,23,0.35)]">
+            <Stat label="Needs a carrier" value={String(needs)} tone={needs ? "text-crane" : "text-fg"} />
+            <Stat label="Held on card" value={formatUsd(heldCents)} />
+            <Stat label="Late fees so far" value={formatUsd(lateCents)} tone={lateCents ? "text-red" : "text-fg"} />
+          </dl>
+          <p className="mt-2.5 text-[13.5px] text-muted sm:text-right">
+            Auto-quote {autoQuote == null ? "off" : `on, ${autoQuote} days before arrival`}.{" "}
+            {autoBookLimitCents == null ? "Every booking waits for you." : `Agents can book up to ${formatUsd(autoBookLimitCents)} on their own.`}
+          </p>
+        </div>
       </div>
 
       <div className="overflow-hidden rounded-[20px] border border-rule bg-sheet shadow-[0_18px_50px_-36px_rgba(18,20,23,0.45)]">
@@ -190,11 +203,27 @@ export function Board({
           <ol>
             {grouped.map((g) => (
               <motion.li key={g.key} layout="position">
-                <div className="border-b border-rule bg-panel-2 px-6 py-2 text-[13px] font-semibold text-fg">
-                  {g.label} <span className="ml-1 font-normal text-muted">{g.rows.length}</span>
+                <div
+                  className={`flex items-center justify-between gap-3 bg-panel-2 px-6 py-2 text-[13px] font-semibold text-fg ${
+                    g.key === "done" && !showDone ? "" : "border-b border-rule"
+                  }`}
+                >
+                  <span>
+                    {g.label} <span className="ml-1 font-normal text-muted">{g.rows.length}</span>
+                  </span>
+                  {g.key === "done" && (
+                    <button
+                      type="button"
+                      onClick={() => setShowDonePref(!showDone)}
+                      aria-expanded={showDone}
+                      className="rounded-full border border-rule bg-sheet px-3 py-0.5 text-[12.5px] font-semibold text-fg transition-colors hover:border-steel"
+                    >
+                      {showDone ? "Hide" : "Show"}
+                    </button>
+                  )}
                 </div>
                 <ol>
-                  {g.rows.map((r) => (
+                  {(g.key !== "done" || showDone ? g.rows : []).map((r) => (
                     <motion.li key={r.container.id} layout="position" transition={{ type: "spring", stiffness: 260, damping: 30 }}>
                       <Row row={r} now={now} demurragePerDayCents={demurragePerDayCents} />
                     </motion.li>
@@ -209,7 +238,23 @@ export function Board({
   );
 }
 
-const COLS = "lg:grid-cols-[minmax(220px,1.3fr)_minmax(120px,0.6fr)_minmax(150px,0.9fr)_minmax(190px,1.1fr)_minmax(130px,0.8fr)]";
+const COLS = "lg:grid-cols-[minmax(220px,1.3fr)_minmax(120px,0.6fr)_minmax(150px,0.9fr)_minmax(190px,1.1fr)_minmax(130px,0.8fr)_16px]";
+
+function Stat({ label, value, tone = "text-fg" }: { label: string; value: string; tone?: string }) {
+  return (
+    <div className="bg-sheet px-4 py-3 sm:px-5 sm:py-3.5">
+      <dt className="whitespace-nowrap text-[12.5px] font-medium text-muted">{label}</dt>
+      <dd className={`mt-1 whitespace-nowrap font-cond text-[22px] font-bold leading-none tabular-nums sm:text-[28px] ${tone}`}>{value}</dd>
+    </div>
+  );
+}
+
+/** Estimated demurrage so far: whole days past the last free day while the box is still in the terminal. */
+function lateFeesCents(c: Container, now: number, perDay: number): number {
+  if (!c.last_free_day || c.status === "picked_up" || c.status === "delivered") return 0;
+  const over = now - lfdEndsAt(c.last_free_day);
+  return over > 0 ? Math.ceil(over / DAY) * perDay : 0;
+}
 
 function MobileLabel({ children }: { children: React.ReactNode }) {
   return <div className="mb-0.5 text-[12px] text-muted lg:hidden">{children}</div>;
@@ -226,7 +271,7 @@ function Row({ row, now, demurragePerDayCents }: { row: BoardRow; now: number | 
   return (
     <Link
       href={`/containers/${c.id}`}
-      className={`group grid grid-cols-2 gap-x-5 gap-y-3 border-b border-rule px-6 py-5 transition-colors hover:bg-panel-2/60 lg:items-center ${COLS}`}
+      className={`group relative grid grid-cols-2 gap-x-5 gap-y-3 border-b border-rule px-6 py-5 transition-colors hover:bg-panel-2/60 lg:items-center ${COLS}`}
       data-container={c.container_number}
     >
       <div className="col-span-2 flex min-w-0 items-center gap-4 lg:col-span-1">
@@ -292,6 +337,12 @@ function Row({ row, now, demurragePerDayCents }: { row: BoardRow; now: number | 
         </div>
         <div className="mt-0.5 text-[13px] text-muted">by {shortDate(c.deliver_by)}</div>
       </div>
+
+      <span aria-hidden className="pointer-events-none absolute right-5 top-6 text-dim transition-colors group-hover:text-fg lg:static lg:flex lg:justify-end">
+        <svg viewBox="0 0 16 16" className="h-4 w-4">
+          <path d="M6 3.5 L10.5 8 L6 12.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </span>
     </Link>
   );
 }
