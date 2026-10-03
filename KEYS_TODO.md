@@ -88,14 +88,17 @@ Then sign in as the judge, open PHGU 482913-7, press Get quotes. Phones ring, th
 ## 5. Stripe (test mode only)
 
 - **Keys:** dashboard.stripe.com, test mode > Developers > API keys. `STRIPE_SECRET_KEY` (`sk_test_...`; live keys are refused by the code) and `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` (`pk_test_...`).
-- **Enable Connect** in test mode: Dashboard > Connect > Get started (one time, platform profile can be minimal).
+- **Enable Connect** in test mode at dashboard.stripe.com/test/connect and finish the platform profile. Without it no connected account can be created. `setup:stripe` makes API-only Custom test accounts, which also need the platform's negative-balance responsibility acknowledged in Connect settings. If Stripe refuses Custom it falls back to Express and prints onboarding links (test values: SMS `000000`, SSN `000000000`, DOB `01/01/1901`, address line 1 `address_full_match`, phone `0000000000`, bank `110000000` / `000123456789`). The in-app "Invite to Stripe" button always uses Express, which needs Connect settings > Branding filled in.
 - **Create the demo money world** (customer with a saved test card for the importer, connected accounts for Marshgrass, Ironclad, Sweetgrass that can receive transfers):
 
 ```bash
 npm run setup:stripe
 ```
 
-- **Webhook:** Developers > Webhooks > Add endpoint `https://<production-url>/api/stripe/webhook`, events `payment_intent.amount_capturable_updated`, `payment_intent.succeeded`, `payment_intent.canceled`, `payment_intent.payment_failed`, `checkout.session.completed`, `account.updated` (also tick "listen to events on connected accounts" for `account.updated`). Copy the signing secret into `STRIPE_WEBHOOK_SECRET`.
+- **Webhooks** (after the deploy, both pointing at `https://<production-url>/api/stripe/webhook`), Developers > Webhooks:
+  - Endpoint A, events from **your account**: `payment_intent.amount_capturable_updated`, `payment_intent.succeeded`, `payment_intent.canceled`, `payment_intent.payment_failed`, `checkout.session.completed`
+  - Endpoint B, events from **connected accounts**: `account.updated`
+  - Put both signing secrets in `STRIPE_WEBHOOK_SECRET`, comma separated: `whsec_A,whsec_B`. Locally a single secret from `stripe listen --forward-to localhost:3000/api/stripe/webhook --forward-connect-to localhost:3000/api/stripe/webhook` works.
 - **Then run:**
 
 ```bash
@@ -119,7 +122,11 @@ npm run test:stripe        # authorize -> accept -> picked up -> delivered (capt
 CALL_MODE=replay npm run test:mcp      # all 5 tools PASS (book_quote needs section 5 done)
 ```
 
-- **Connect Claude:** claude.ai > Settings > Connectors > Add custom connector, URL `https://<production-url>/api/mcp`, header `Authorization: Bearer <DEMO_MCP_API_KEY>`. Or Claude Code: `claude mcp add --transport http portcall https://<production-url>/api/mcp --header "Authorization: Bearer <key>"`.
+- **Connect Claude** (any one):
+  - Claude Code (most reliable on stage): `claude mcp add --transport http portcall https://<production-url>/api/mcp --header "Authorization: Bearer <DEMO_MCP_API_KEY>"`
+  - claude.ai custom connector: URL `https://<production-url>/api/mcp?key=<DEMO_MCP_API_KEY>` (connectors expect OAuth, so the key rides in the URL instead of a header).
+  - Claude Desktop config: `{"mcpServers":{"portcall":{"command":"npx","args":["mcp-remote","https://<production-url>/api/mcp","--header","Authorization: Bearer <key>"]}}}`
+- **Auto-book note:** the seeded importer auto-books winners under $1,500, so the pipeline books Marshgrass the moment it is ranked and the agent's `book_quote` returns `already_booked`. To show the agent booking it, turn "Auto-book the winner" off in Settings first.
 
 ## 8. Screenshots and submission
 

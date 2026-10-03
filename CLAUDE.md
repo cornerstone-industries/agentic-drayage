@@ -6,6 +6,13 @@ Read this whole file before writing code. It is the source of truth for scope, d
 
 ---
 
+## Build status (updated Oct 3, 1:15 PM PT)
+
+- Supabase project **portcall** in the Cornerstone org, ref `apbvdeghnqrvagjdscog` (us-east-1). Migrations in `supabase/migrations` are applied there (schema + RLS + Realtime, pg_cron auto-quote job, RLS helpers in a private schema). Supabase Realtime drives every live surface.
+- Everything is built; only keys are missing. `KEYS_TODO.md` is the runbook: each key, where to get it, the env var, and the exact command to run after adding it.
+- Verified against a local Supabase stack with the DEV ONLY fixture AI: `npm run build`, `npm run lint`, `npx tsc --noEmit`, `npm run test:replay` (all PASS) and `npm run test:mcp` (all PASS except `book_quote`, which needs Stripe keys).
+- Current API facts that differ from this doc: AI SDK 7 prefers `generateText({ output: Output.object(...) })` (generateObject is deprecated); gateway slugs are `anthropic/claude-haiku-4.5` (extraction) and `anthropic/claude-sonnet-5.5` (ranking); `mcp-handler` 2.x uses `server.registerTool` and Streamable HTTP only; Vapi's webhook config is `server: { url, headers }` (no `serverUrl`), `transcript` must be listed in `serverMessages`, POST /call has no top-level `metadata`, and free Vapi numbers cannot dial out (import a Twilio number).
+
 ## 0. Hard constraints
 
 - **Submission closes 5:30 PM PT. It does not move.** Submit by 4:45 PM, keep editing until 5:30. Top teams demo at 6:15 PM.
@@ -383,10 +390,12 @@ Use one `/goal` per checkpoint, never one giant goal. Pair with auto mode. Confi
 5. (15s) Teammate's phone shows the tender email -> taps Accept -> dashboard flips to Booked live. Mark Delivered -> PAID.
 6. (10s) "Every call makes our rate data smarter. As models get better, agents negotiate and reach more of the carriers that only answer the phone."
 
-**Dispatcher scripts for teammates:**
-- **Marshgrass Drayage:** $650 linehaul, fuel 18%, chassis $40/day for 2 days, pickup the day it's available, can deliver by Friday. (Winner)
-- **Ironclad Intermodal:** $595 flat, but earliest pickup is 2 days after LFD. (Cheapest trap)
-- **Sweetgrass Transport:** $720 including chassis, pickup on time, but $75 pre-pull fee if no terminal appointment. (Accessorial curveball)
+**Dispatcher scripts for teammates** (these exact numbers are also the replay fixtures in `lib/replay/script.ts`):
+- **Marshgrass Drayage:** $650 linehaul, fuel 18%, chassis $40/day for 2 days, pickup the day it's available, can deliver by Friday. All-in $847. (Winner)
+- **Ironclad Intermodal:** $595 flat, fuel and chassis included, but earliest pickup is 2 days after LFD, so it misses the deliver-by date. $595 + $350 estimated demurrage = $945. (Cheapest trap)
+- **Sweetgrass Transport:** $720 including chassis, **fuel 19% on top**, pickup on time, but $75 pre-pull fee if no terminal appointment. $720 + $136.80 + $75 = $931.80. (Accessorial curveball)
+
+Sweetgrass must say the fuel line: without it Sweetgrass is $795 and beats Marshgrass. With these numbers the stage line is: "Ironclad is $252 cheaper on paper but can't pick up until 2 days after the last free day; $350 of estimated demurrage makes it $98 more, and it misses the deliver-by date. Marshgrass wins at $847."
 
 ## 16. Submission checklist
 
