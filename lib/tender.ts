@@ -106,6 +106,61 @@ async function cancelHold(paymentIntentId: string, bookingId: string): Promise<v
   }
 }
 
+/**
+ * A booking with no hold (seed data writes bookings without ever calling Stripe): place the hold the way
+ * booking does (the importer's saved card, manual capture, payout to the carrier, platform fee) and save it.
+ */
+async function placeMissingHold(db: AdminClient, l: Loaded): Promise<string> {
+  const { booking, container, provider } = l;
+  const { data: importer, error } = await db
+    .from("importers")
+    .select("id, stripe_customer_id, default_payment_method_id")
+    .eq("id", container.importer_id ?? "")
+    .maybeSingle();
+  if (error) throw new Error(`importer lookup failed: ${error.message}`);
+  if (!importer?.stripe_customer_id || !importer.default_payment_method_id) {
+    throw new TenderError(409, "This booking has no card hold, and the importer has no card on file");
+  }
+  if (!provider.stripe_account_id) throw new TenderError(409, `${provider.name} is not set up on Stripe yet, so it cannot be paid`);
+
+  const stripe = getStripe();
+  let pi: Stripe.PaymentIntent;
+  try {
+    pi = await stripe.paymentIntents.create(
+      {
+        amount: booking.amount_cents,
+        currency: "usd",
+        customer: importer.stripe_customer_id,
+        payment_method: importer.default_payment_method_id,
+        off_session: true,
+        confirm: true,
+        capture_method: "manual",
+        transfer_data: { destination: provider.stripe_account_id },
+        application_fee_amount: booking.platform_fee_cents,
+        description: `PortCall drayage ${container.container_number} with ${provider.name}`,
+        metadata: {
+          importer_id: importer.id,
+          container_id: container.id,
+          container_number: container.container_number,
+          quote_id: booking.quote_id ?? "",
+          provider_id: provider.id,
+          booked_by: booking.booked_by ?? "",
+        },
+      },
+      { idempotencyKey: `hold_${booking.id}` },
+    );
+  } catch (err) {
+    throw new TenderError(502, `Stripe could not place the payment hold: ${stripeMessage(err)}`);
+  }
+  if (pi.status !== "requires_capture") {
+    await stripe.paymentIntents.cancel(pi.id).catch(() => undefined);
+    throw new TenderError(502, `The payment hold ended in status ${pi.status} instead of requires_capture`);
+  }
+  const { error: upErr } = await db.from("bookings").update({ stripe_payment_intent_id: pi.id }).eq("id", booking.id).is("stripe_payment_intent_id", null);
+  if (upErr) throw new Error(`booking update failed: ${upErr.message}`);
+  return pi.id;
+}
+
 /** Captures the held payment. Already captured counts as done; an expired hold is a clear error. */
 async function captureHold(paymentIntentId: string, bookingId: string): Promise<void> {
   const stripe = getStripe();
@@ -197,8 +252,8 @@ async function delivered(db: AdminClient, l: Loaded): Promise<boolean> {
   if (container.status === "delivered") return false;
   if (container.status === "accepted") throw new TenderError(409, "Mark the load Picked up before Delivered");
   if (container.status !== "picked_up") throw new TenderError(409, `The container is ${container.status}, so it cannot be marked delivered`);
-  const piId = booking.stripe_payment_intent_id;
-  if (!piId) throw new TenderError(409, "This booking has no payment on file to capture");
+  // Seeded history bookings were never charged: place their hold now, then capture it like any other.
+  const piId = booking.stripe_payment_intent_id ?? (await placeMissingHold(db, l));
 
   await captureHold(piId, booking.id);
 
