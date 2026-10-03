@@ -4,18 +4,20 @@ export default {
   content: ["./app/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}", "./lib/**/*.{ts,tsx}"],
   theme: {
     extend: {
+      // Channels let every opacity modifier work (border-line/60, bg-sodium/15, ...).
       colors: {
-        ink: "var(--ink)",
-        panel: "var(--panel)",
-        "panel-2": "var(--panel-2)",
-        line: "var(--line)",
-        sodium: "var(--sodium)",
-        signal: "var(--signal)",
-        alarm: "var(--alarm)",
-        fg: "var(--text)",
-        muted: "var(--muted)",
-        dim: "var(--dim)",
+        ink: "rgb(var(--ink-rgb) / <alpha-value>)",
+        panel: "rgb(var(--panel-rgb) / <alpha-value>)",
+        "panel-2": "rgb(var(--panel-2-rgb) / <alpha-value>)",
+        line: "rgb(var(--line-rgb) / <alpha-value>)",
+        sodium: "rgb(var(--sodium-rgb) / <alpha-value>)",
+        signal: "rgb(var(--signal-rgb) / <alpha-value>)",
+        alarm: "rgb(var(--alarm-rgb) / <alpha-value>)",
+        fg: "rgb(var(--text-rgb) / <alpha-value>)",
+        muted: "rgb(var(--muted-rgb) / <alpha-value>)",
+        dim: "rgb(var(--dim-rgb) / <alpha-value>)",
       },
+      borderColor: { DEFAULT: "rgb(var(--line-rgb) / <alpha-value>)" },
       fontFamily: {
         sans: ["var(--font-archivo)", "system-ui", "sans-serif"],
         display: ["var(--font-archivo)", "system-ui", "sans-serif"],

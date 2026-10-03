@@ -14,6 +14,16 @@
   --text: #e6edf3;
   --muted: #7d8b99;
   --dim: #4a5866;
+  --ink-rgb: 10 14 19;
+  --panel-rgb: 16 22 30;
+  --panel-2-rgb: 13 18 25;
+  --line-rgb: 28 39 51;
+  --sodium-rgb: 255 176 32;
+  --signal-rgb: 46 230 197;
+  --alarm-rgb: 255 77 77;
+  --text-rgb: 230 237 243;
+  --muted-rgb: 125 139 153;
+  --dim-rgb: 74 88 102;
   color-scheme: dark;
 }
 
