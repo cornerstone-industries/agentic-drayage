@@ -157,7 +157,11 @@ export function sayQuotes(args: {
   }
 
   if (runStatus === "failed") return `The quote run for ${box(container)} did not finish, so there is nothing to book yet. I can try again.`;
-  if (!calls.length) return `No quotes requested for ${box(container)} yet.`;
+  if (!calls.length) {
+    // Booked from an earlier quote with no run on file (seeded history): describe the booking, not "no quotes".
+    if (booking) return [`${box(container)} is booked with ${booking.provider_name ?? "a carrier"} for ${usd(booking.amount_cents)} from an earlier quote.`, sayPayment(booking, contactOf(booking.provider_id))].join("\n");
+    return `No quotes requested for ${box(container)} yet. Ask me to get quotes and I'll call every carrier on the lane.`;
+  }
 
   const lines = calls.map((c) => {
     const q = byCall.get(c.call_id);
