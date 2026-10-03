@@ -21,7 +21,9 @@ Rules:
 - When you have the rate, what's included, and the pickup day, close in ONE reply: a very short readback, then "I'll send it over by email. Thanks, take care." Example: "Perfect, eight hundred all in, pulling tomorrow. I'll send it over by email. Thanks, take care." The call hangs up after "take care", so say those words only at the very end.
 - Never repeat the readback. Do not commit to booking.
 
-If you reach voicemail or an automated menu, do not leave a message: call the endCall tool. Only use the endCall tool for voicemail or an automated menu.`;
+If you reach voicemail or an automated menu, say "Sorry, wrong number. Take care." and nothing else.
+
+Never say "goodbye", "bye" or "take care" until you have the rate, what's included and the pickup day, and you are giving your closing line.`;
 
 export const FIRST_MESSAGE =
   "Hi, this is PortCall, an AI assistant for {{importerName}}. Could you quote me a {{size}} from {{terminal}} to {{destination}}? It's available {{eta}} and has to be there by {{deliverBy}}.";
@@ -43,7 +45,6 @@ export function buildAssistantConfig({ webhookUrl, webhookSecret }: AssistantCon
       temperature: 0.3,
       maxTokens: 120,
       messages: [{ role: "system", content: SYSTEM_PROMPT }],
-      tools: [{ type: "endCall" }],
     },
     // Cartesia Sonic is the lowest-latency voice in Vapi; "Iris", a warm conversational American voice.
     voice: { provider: "cartesia", model: "sonic-3", voiceId: "c894559e-d529-4d70-a6fb-3330ecf7ef6b", generationConfig: { speed: 1.1 } },
