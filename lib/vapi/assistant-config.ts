@@ -61,8 +61,8 @@ export function buildAssistantConfig({ webhookUrl, webhookSecret }: AssistantCon
     firstMessage: FIRST_MESSAGE,
     firstMessageMode: "assistant-speaks-first",
     // She never hangs up herself (a spoken end phrase clipped the goodbye on the phone): she says goodbye and the
-    // dispatcher hangs up, or Vapi ends the call after 10s of silence.
-    silenceTimeoutSeconds: 10,
+    // dispatcher hangs up, or Vapi ends the call after 30s of silence (answers have registered 10-13s late in a noisy room).
+    silenceTimeoutSeconds: 30,
     maxDurationSeconds: 180,
     backgroundSound: "off",
     // `transcript` is not in Vapi's default serverMessages and this list replaces the default, so name every type the webhook handles.
