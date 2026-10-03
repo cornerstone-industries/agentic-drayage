@@ -2,12 +2,14 @@ import Link from "next/link";
 import { Wordmark } from "@/components/console/wordmark";
 import { HeroPreview } from "@/components/landing/hero-preview";
 
+const SOURCE = "https://www.insidelogistics.ca/digitization/phone-and-email-still-most-common-way-to-make-a-freight-booking-183672/";
+
 const RUN = [
   { at: "0:00", title: "Claude asks for quotes", body: "An agent calls request_quotes over MCP. A person can press the button, or pg_cron starts it when a box is three days out." },
-  { at: "0:03", title: "Three phones ring at once", body: "PortCall calls Marshgrass, Ironclad and Sweetgrass in parallel and says it is an AI in the first sentence." },
-  { at: "0:40", title: "Numbers land as they are spoken", body: "Linehaul, fuel, chassis, extra fees and pickup date are pulled from each conversation and linked to the exact words." },
-  { at: "1:30", title: "Ranked on what it will really cost", body: "Ironclad is $252 cheaper on paper, but its pickup lands two days after the last free day. Marshgrass wins at $847." },
-  { at: "1:31", title: "Booked inside the spending limit", body: "Stripe holds the card, a tender email goes to the carrier, and delivery releases the payment." },
+  { at: "0:04", title: "Three phones ring at once", body: "PortCall calls Marshgrass, Ironclad and Sweetgrass in parallel and says it is an AI in the first sentence." },
+  { at: "0:38", title: "Numbers land as they are spoken", body: "Linehaul, fuel, chassis, extra fees and pickup date are pulled from each conversation and linked to the exact words." },
+  { at: "1:36", title: "Ranked on what it will really cost", body: "Ironclad is $252 cheaper on paper, but its pickup lands two days after the last free day. Marshgrass wins at $847." },
+  { at: "1:37", title: "Booked inside the spending limit", body: "Stripe holds the card, a tender email goes to the carrier, and delivery releases the payment." },
 ];
 
 const SUPABASE = [
@@ -38,7 +40,16 @@ export default function Landing() {
             Agents can&apos;t pick up a phone. We give them one.
           </h1>
           <p className="mx-auto mt-7 max-w-[46ch] text-[19px] leading-[1.55] text-muted sm:text-[21px]">
-            Half of freight still runs on phone calls. With PortCall, <span className="font-semibold text-fg">a one-person import team</span> gets{" "}
+            <a
+              href={SOURCE}
+              target="_blank"
+              rel="noreferrer"
+              className="underline decoration-dim decoration-dotted decoration-[1.5px] underline-offset-[5px] hover:text-fg hover:decoration-fg"
+              title="Container xChange and Copenhagen Business School survey of 137 freight forwarders, November 2022"
+            >
+              84% of freight forwarders still get quotes by phone and email.
+            </a>{" "}
+            With PortCall, <span className="font-semibold text-fg">a one-person import team</span> gets{" "}
             <span className="font-semibold text-fg">three drayage quotes in two minutes</span> without making a call, and the agent{" "}
             <span className="font-semibold text-fg">books and pays before late fees hit</span>.
           </p>
@@ -61,7 +72,8 @@ export default function Landing() {
             <div>
               <h2 className="font-cond text-[44px] font-extrabold leading-[1] tracking-[-0.02em] text-fg">One quote run, start to finish</h2>
               <p className="mt-5 text-[17px] leading-relaxed text-muted">
-                Times from a real run on the demo container. The freight world&apos;s paperwork still happens, it just happens without anyone dialing.
+                Timed on the demo container with recorded dispatcher answers; extraction, ranking, booking and payment ran for real. The
+                freight world&apos;s paperwork still happens, it just happens without anyone dialing.
               </p>
             </div>
             <ol className="divide-y divide-rule border-y border-rule">

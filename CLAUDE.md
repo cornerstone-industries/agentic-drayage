@@ -28,7 +28,7 @@ Read this whole file before writing code. It is the source of truth for scope, d
 1. **Value:** "A one-person import team gets 3 drayage quotes in 2 minutes without making a single phone call, and the agent books and pays before late fees hit." If a feature doesn't make that sentence more real, cut it.
 2. **Scales with intelligence:** smarter voice agents negotiate better and reach more carriers; every call adds rate and availability data to Supabase, so the product compounds as models improve.
 
-Stage line: **"Agents can't pick up a phone, and half of freight still runs on phone calls. We give agents a phone line to the freight world."**
+Stage line: **"Agents can't pick up a phone, and freight still runs on phone calls: 84% of freight forwarders still get quotes by phone and email. We give agents a phone line to the freight world."** (Source: Container xChange and Copenhagen Business School survey of 137 forwarders, Nov 2022, https://www.insidelogistics.ca/digitization/phone-and-email-still-most-common-way-to-make-a-freight-booking-183672/. The old "half of freight" line had no source; don't use it.)
 
 ## 2. The product in one flow
 

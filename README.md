@@ -2,7 +2,7 @@
 
 **A one-person import team gets 3 drayage quotes in 2 minutes without making a single phone call, and the agent books and pays before late fees hit.**
 
-Agents can't pick up a phone, and half of freight still runs on phone calls. PortCall gives agents a phone line to the freight world: an MCP server that dials your own trucking providers in parallel with a voice agent, pulls the quote out of the conversation as it happens, ranks the offers on risk-adjusted cost, and books and pays inside a spending guardrail.
+Agents can't pick up a phone, and freight still runs on phone calls and email: 84% of freight forwarders still get quotes that way and 78% still book that way ([Container xChange and Copenhagen Business School survey, Nov 2022](https://www.insidelogistics.ca/digitization/phone-and-email-still-most-common-way-to-make-a-freight-booking-183672/)). PortCall gives agents a phone line to the freight world: an MCP server that dials your own trucking providers in parallel with a voice agent, pulls the quote out of the conversation as it happens, ranks the offers on risk-adjusted cost, and books and pays inside a spending guardrail.
 
 Built for the Supabase Select Hackathon (theme: build something agents want).
 
