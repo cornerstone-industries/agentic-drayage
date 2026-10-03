@@ -251,6 +251,7 @@ function toBookingView(b: Booking, providerName: string | null): BookingView {
     amount_usd: money(b.amount_cents),
     platform_fee_cents: b.platform_fee_cents,
     platform_fee_usd: money(b.platform_fee_cents),
+    payment_on_file: Boolean(b.stripe_payment_intent_id),
     payment_status: b.payment_status,
     tender_status: b.tender_status,
     booked_by: b.booked_by,

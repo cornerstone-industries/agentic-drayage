@@ -62,6 +62,10 @@ export function sayPayment(b: BookingView, contact: string | null | undefined): 
   const carrier = b.provider_name ?? "the carrier";
   const payout = usd(b.amount_cents - b.platform_fee_cents);
   const fee = usd(b.platform_fee_cents);
+  if (!b.payment_on_file) {
+    const state = b.payment_status === "captured" ? "paid" : b.payment_status === "authorized" ? "held" : (b.payment_status ?? "pending");
+    return `Recorded as ${state} in PortCall's seeded history: ${usd(b.amount_cents - b.platform_fee_cents)} to ${carrier}, ${usd(b.platform_fee_cents)} PortCall fee. It predates live payments, so no Stripe charge is behind it.`;
+  }
   const tender =
     b.tender_status === "accepted" ? `${first(contact) ?? carrier} accepted the load.` : b.tender_status === "declined" ? `${carrier} declined the tender.` : `Tender emailed to ${first(contact) ?? carrier} with a one-tap Accept.`;
   switch (b.payment_status) {
@@ -178,7 +182,7 @@ export function sayBooking(b: BookingView, container: ContainerView, contact: st
 
 export function sayStatus(container: ContainerView, booking: BookingView | null, events: EventView[], contact: string | null | undefined): string {
   const time = (iso: string | null) =>
-    iso ? new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/New_York" }) : "";
+    iso ? new Date(iso).toLocaleString("en-US", { weekday: "short", month: "numeric", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/New_York" }) : "";
   const latest = events
     .filter((e) => e.type !== "field_heard")
     .slice(-5)

@@ -146,8 +146,7 @@ get_container_status({ container_id })`}
               Connect your agent
             </Link>
             <p className="mt-4 rounded-[18px] border border-rule bg-sheet p-5 text-[16px] leading-relaxed text-fg">
-              &ldquo;Container PHGU4829137 lands in Charleston in 2 days. Get it to our Atlanta DC by Friday, cheapest reliable option, book it if
-              it&apos;s under our limit.&rdquo;
+              &ldquo;Our container that landed in Charleston this morning needs to get to our Atlanta DC by Thursday. Get quotes, pick the cheapest reliable option, and book it if it&apos;s under our limit.&rdquo;
             </p>
           </div>
           <div>

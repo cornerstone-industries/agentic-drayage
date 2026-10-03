@@ -130,7 +130,9 @@ async function main() {
   const pid = (name: string) => providers!.find((p) => p.name.startsWith(name))!.id;
 
   // Containers
-  const demoEta = at(2);
+  // Discharged this morning (6 AM ET): the box is available now, so quote, book, pick up and deliver can all
+  // really happen today. Last free day is 4 days out, deliver-by 5.
+  const demoEta = at(0, 10);
   const containers = [
     {
       // The demo container (number exactly as scripted in CLAUDE.md)

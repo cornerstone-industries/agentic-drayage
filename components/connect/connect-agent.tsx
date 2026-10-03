@@ -17,7 +17,7 @@ const CLIENTS: { key: ClientKey; label: string }[] = [
 ];
 
 const PROMPT =
-  "Container PHGU4829137 lands in Charleston in 2 days. Get it to our Atlanta DC by Friday, cheapest reliable option. Book it if it's under our limit.";
+  "Our container that landed in Charleston this morning needs to get to our Atlanta DC by Thursday. Get quotes, pick the cheapest reliable option, and book it if it's under our limit.";
 
 /** UTF-8 safe base64 for the Cursor install link. */
 const b64 = (s: string) => btoa(String.fromCharCode(...new TextEncoder().encode(s)));

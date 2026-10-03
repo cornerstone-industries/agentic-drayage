@@ -119,6 +119,7 @@ export const bookingViewSchema = z.object({
   amount_usd: z.string(),
   platform_fee_cents: z.number(),
   platform_fee_usd: z.string(),
+  payment_on_file: z.boolean().describe("True when a real Stripe PaymentIntent backs this booking. Seeded history bookings have none."),
   payment_status: text.describe("authorized, captured, canceled or failed."),
   tender_status: text.describe("sent, accepted or declined."),
   booked_by: text.describe("human, agent or auto."),

@@ -81,7 +81,7 @@ Claude Desktop / claude.ai custom connector config:
 { "mcpServers": { "portcall": { "url": "https://portcall-three.vercel.app/api/mcp", "headers": { "Authorization": "Bearer <key>" } } } }
 ```
 
-Try: *"Container PHGU4829137 lands in Charleston in 2 days. Get it to our Atlanta DC by Friday, cheapest reliable option, book it if it's under our limit."*
+Try: *"Our container that landed in Charleston this morning needs to get to our Atlanta DC by Thursday. Get quotes, pick the cheapest reliable option, and book it if it's under our limit."*
 
 ## Replay mode
 

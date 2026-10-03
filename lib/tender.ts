@@ -178,6 +178,11 @@ async function pickedUp(db: AdminClient, l: Loaded): Promise<boolean> {
   if (container.status === "picked_up") return false;
   if (container.status === "delivered") throw new TenderError(409, "This load is already delivered");
   if (container.status !== "accepted") throw new TenderError(409, `The container is ${container.status}, so it cannot be marked picked up`);
+  // A trucker cannot pull a box that is still on the ship.
+  if (container.eta && Date.parse(container.eta) > Date.now()) {
+    const when = new Date(container.eta).toLocaleString("en-US", { weekday: "short", month: "numeric", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/New_York" });
+    throw new TenderError(409, `This container is not off the ship yet. It discharges ${when} ET; mark it picked up after that.`);
+  }
   const { data: won, error } = await db.from("containers").update({ status: "picked_up" }).eq("id", container.id).eq("status", "accepted").select("id");
   if (error) throw new Error(`container update failed: ${error.message}`);
   if (!won?.length) return false;
