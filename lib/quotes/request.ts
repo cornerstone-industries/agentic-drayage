@@ -31,9 +31,14 @@ const CLOSED = new Set(["booked", "accepted", "picked_up", "delivered"]);
 /** Live calls get this long before the run is ranked with whatever was heard. */
 const LIVE_TIMEOUT_MS = 3 * 60_000 + 10_000;
 
+/** NANP's fictional range (NXX-555-0100 to 0199): seeded demo phones that can never answer. */
+const PLACEHOLDER_PHONE = /^\+1\d{3}55501\d{2}$/;
+
 export function laneCheck(p: Provider, port: string, destState: string | null): string | null {
   if (!(p.ports ?? []).includes(port)) return `Not called: doesn't serve the Port of ${port}`;
   if (destState && !(p.service_states ?? []).includes(destState)) return `Not called: lane not served (no ${destState} deliveries)`;
+  // Live calls to a 555-01xx number can't connect and still spend a carrier dial (the Telnyx trial caps dials per hour).
+  if (callMode() === "live" && PLACEHOLDER_PHONE.test(p.phone ?? "")) return "Not called: no reachable phone number on file";
   return null;
 }
 
