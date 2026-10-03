@@ -55,9 +55,9 @@ export function buildAssistantConfig({ webhookUrl, webhookSecret }: AssistantCon
       waitSeconds: 0.1,
       transcriptionEndpointingPlan: { onPunctuationSeconds: 0.1, onNoPunctuationSeconds: 0.6, onNumberSeconds: 0.4 },
     },
-    // Venue noise cut her off mid-sentence with numWords 0; need two real words before yielding.
+    // Venue noise cut her off mid-sentence (even mid-goodbye at numWords 2); she yields only to 4+ words of real speech.
     // (Smart denoising was tried and doubled transcriber latency to ~1.2s, so the prompt handles stray fragments instead.)
-    stopSpeakingPlan: { numWords: 2, voiceSeconds: 0.3, backoffSeconds: 0.8 },
+    stopSpeakingPlan: { numWords: 4, voiceSeconds: 0.5, backoffSeconds: 0.8 },
     firstMessage: FIRST_MESSAGE,
     firstMessageMode: "assistant-speaks-first",
     // The phone leg lags ~0.5s behind and the hang-up clips the tail, so the warm part comes first and "bye now" last.
