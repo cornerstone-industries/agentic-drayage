@@ -153,17 +153,10 @@ export function CallCard({ channel, provider, call, lines, quote, lastFreeDay, r
   const freshLines = new Set((fresh?.fields ?? []).map((f) => sourceFor(f, sources)).filter((x): x is number => x != null));
 
   return (
-    <div className="relative pt-5" data-testid="call-card" data-status={status} data-provider={provider.name}>
-      {/* clip on the rail */}
-      <svg className="absolute left-1/2 top-[-6px] z-20 -translate-x-1/2" width="54" height="30" viewBox="0 0 54 30" aria-hidden>
-        <rect x="9" y="1" width="36" height="20" rx="4" fill="#2A2F35" />
-        <rect x="12" y="4" width="30" height="6" rx="2" fill="#4A5159" />
-        <path d="M17 21 v7 M37 21 v7" stroke="#2A2F35" strokeWidth="3" strokeLinecap="round" />
-      </svg>
-
+    <div className="relative" data-testid="call-card" data-status={status} data-provider={provider.name}>
       <div
         ref={card}
-        className={`relative origin-top overflow-hidden rounded-[18px] border bg-sheet transition-[box-shadow,transform,border-color] duration-500 ${
+        className={`relative overflow-hidden rounded-[18px] border bg-sheet transition-[box-shadow,transform,border-color] duration-500 ${
           status === "ringing" ? "animate-ring" : ""
         } ${
           isWinner

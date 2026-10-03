@@ -170,7 +170,7 @@ export function ContainerLive({
       ? "Quotes are in, ranked by real cost"
       : activeQr?.status === "failed"
         ? "That run did not finish"
-        : "Three carriers, one minute";
+        : "Three carriers, about two minutes";
   const subline = calling
     ? mode === "replay"
       ? "Replaying recorded dispatcher calls through the live pipeline. This is not a live call."
@@ -222,7 +222,7 @@ export function ContainerLive({
           </div>
         </section>
 
-        {/* Call Wall: the dispatch rail */}
+        {/* Call Wall: one card per call */}
         <section ref={wallRef} className="scroll-mt-20 pt-12" data-testid="call-wall" data-realtime={connected ? "on" : "off"} aria-label="Call wall">
           <div className="flex flex-wrap items-end justify-between gap-5">
             <div className="max-w-xl">
@@ -250,13 +250,7 @@ export function ContainerLive({
             </p>
           )}
 
-          <div className="relative mt-10">
-            {/* the steel rail the tickets hang from */}
-            <div className="absolute left-[-12px] right-[-12px] top-0 z-10 h-[10px] rounded-full bg-[linear-gradient(180deg,#D9DDE1,#8E959D_55%,#6A7179)] shadow-[0_3px_6px_-2px_rgba(0,0,0,0.35)]" aria-hidden>
-              {[2, 98].map((x) => (
-                <span key={x} className="absolute top-1/2 h-[6px] w-[6px] -translate-y-1/2 rounded-full bg-[#4A5159]" style={{ left: `${x}%` }} />
-              ))}
-            </div>
+          <div className="relative mt-8">
             <LayoutGroup>
               <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
                 {slots.map((s, i) => {

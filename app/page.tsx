@@ -1,8 +1,27 @@
 import Link from "next/link";
 import { Wordmark } from "@/components/console/wordmark";
 import { HeroPreview } from "@/components/landing/hero-preview";
+import { RunResult } from "@/components/landing/run-result";
 
 const SOURCE = "https://www.insidelogistics.ca/digitization/phone-and-email-still-most-common-way-to-make-a-freight-booking-183672/";
+
+const WHO = [
+  {
+    who: "The import team",
+    gets: "Three quotes in two minutes, without a phone call.",
+    how: "Ranked by what each will really cost, and booked before late fees start. One coordinator can run every box that lands.",
+  },
+  {
+    who: "Their AI agent",
+    gets: "A phone line to the freight world.",
+    how: "Five MCP tools: find containers, get quotes, book inside a spending limit, and track the box to the door.",
+  },
+  {
+    who: "The trucker",
+    gets: "Booked loads with nothing new to learn.",
+    how: "Answer the phone like always, tap Accept in the tender email, and get paid through Stripe on delivery.",
+  },
+];
 
 const RUN = [
   { at: "0:00", title: "Claude asks for quotes", body: "An agent calls request_quotes over MCP. A person can press the button, or pg_cron starts it when a box is three days out." },
@@ -29,7 +48,7 @@ export default function Landing() {
             For agents
           </a>
           <Link href="/dashboard" className="btn-primary !px-5 !py-2.5">
-            Open live demo
+            Try the demo
           </Link>
         </nav>
       </header>
@@ -55,7 +74,7 @@ export default function Landing() {
           </p>
           <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
             <Link href="/dashboard" className="btn-primary !px-7 !py-3.5 !text-[16px]">
-              Open live demo
+              Try the demo
             </Link>
             <a href="#agents" className="btn-ghost !px-6 !py-3.5 !text-[16px]">
               Connect your agent
@@ -67,26 +86,42 @@ export default function Landing() {
           </div>
         </section>
 
+        <section className="mx-auto max-w-[1240px] px-4 pb-20 sm:px-6">
+          <h2 className="font-cond text-[44px] font-extrabold leading-[1] tracking-[-0.02em] text-fg">Who it&apos;s for</h2>
+          <div className="mt-10 grid gap-10 md:grid-cols-3">
+            {WHO.map((w) => (
+              <div key={w.who} className="border-t-2 border-fg pt-5">
+                <div className="text-[14px] font-semibold text-muted">{w.who}</div>
+                <p className="mt-2 font-cond text-[28px] font-bold leading-[1.08] tracking-[-0.01em] text-fg">{w.gets}</p>
+                <p className="mt-3 text-[16px] leading-relaxed text-muted">{w.how}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
         <section className="border-y border-rule bg-sheet">
-          <div className="mx-auto grid max-w-[1240px] gap-12 px-4 py-20 sm:px-6 lg:grid-cols-[380px_1fr]">
-            <div>
+          <div className="mx-auto max-w-[1240px] px-4 py-20 sm:px-6">
+            <div className="max-w-2xl">
               <h2 className="font-cond text-[44px] font-extrabold leading-[1] tracking-[-0.02em] text-fg">One quote run, start to finish</h2>
               <p className="mt-5 text-[17px] leading-relaxed text-muted">
                 Timed on the demo container with recorded dispatcher answers; extraction, ranking, booking and payment ran for real. The
                 freight world&apos;s paperwork still happens, it just happens without anyone dialing.
               </p>
             </div>
-            <ol className="divide-y divide-rule border-y border-rule">
-              {RUN.map((r) => (
-                <li key={r.at} className="grid grid-cols-[72px_1fr] gap-6 py-5 sm:grid-cols-[96px_1fr]">
-                  <span className="font-mono text-[15px] font-medium tabular-nums text-muted">{r.at}</span>
-                  <div>
-                    <div className="text-[17px] font-semibold text-fg">{r.title}</div>
-                    <div className="mt-1 text-[15px] leading-relaxed text-muted">{r.body}</div>
-                  </div>
-                </li>
-              ))}
-            </ol>
+            <div className="mt-12 grid gap-12 lg:grid-cols-[minmax(0,1fr)_500px] lg:items-start">
+              <ol className="divide-y divide-rule border-y border-rule">
+                {RUN.map((r) => (
+                  <li key={r.at} className="grid grid-cols-[72px_1fr] gap-6 py-5 sm:grid-cols-[96px_1fr]">
+                    <span className="font-mono text-[15px] font-medium tabular-nums text-muted">{r.at}</span>
+                    <div>
+                      <div className="text-[17px] font-semibold text-fg">{r.title}</div>
+                      <div className="mt-1 text-[15px] leading-relaxed text-muted">{r.body}</div>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+              <RunResult steps={false} />
+            </div>
           </div>
         </section>
 
@@ -133,7 +168,7 @@ get_container_status({ container_id })`}
             </p>
             <div className="mt-9">
               <Link href="/dashboard" className="btn-primary !px-7 !py-3.5 !text-[16px]">
-                Open live demo
+                Try the demo
               </Link>
             </div>
           </div>

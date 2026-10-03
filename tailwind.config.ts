@@ -38,13 +38,11 @@ export default {
         mono: ["var(--font-plex-mono)", "ui-monospace", "monospace"],
       },
       keyframes: {
+        // A phone buzzing on a desk: short side-to-side bursts, then a pause.
         ring: {
-          "0%, 100%": { transform: "rotate(0deg)" },
-          "10%": { transform: "rotate(-2.2deg)" },
-          "20%": { transform: "rotate(2deg)" },
-          "30%": { transform: "rotate(-1.6deg)" },
-          "40%": { transform: "rotate(1.2deg)" },
-          "50%": { transform: "rotate(0deg)" },
+          "0%, 40%, 100%": { transform: "translateX(0)" },
+          "5%, 15%, 25%, 35%": { transform: "translateX(-2px)" },
+          "10%, 20%, 30%": { transform: "translateX(2px)" },
         },
         "live-dot": {
           "0%": { boxShadow: "0 0 0 0 rgba(15,138,95,0.55)" },

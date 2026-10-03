@@ -17,6 +17,12 @@ Left: **Vapi live calls (Ben)**, then rehearsal, video, screenshots, README URL,
 
 Production still runs `CALL_MODE=replay` until Vapi is set up. Every `.env.local` key is on Vercel; `vercel env pull .env.local` gets them.
 
+## Updates (3:00 PM PT)
+
+- **Auto-quote is wired:** Vault now holds `portcall_app_url` and `portcall_cron_secret`. Tested on production: with auto-quote on, pg_cron started a run by itself 35 s after the demo box was reset. Auto-quote is OFF again. **Never turn it on while `CALL_MODE=live`**: it would phone the carriers by itself within a minute.
+- **Live mode finding:** a live run at 2:45 PM placed one real call (Marshgrass, number ending 3083; nobody spoke, `silence-timed-out`). Ironclad and Sweetgrass still have fake 555 numbers, so their calls sat in `queued` and the run failed with "Timed out with no usable quotes". Before the stage demo, give all three providers real teammate phones (Settings, Drayage providers) or only one phone will ring.
+- **After the demo:** set `CALL_MODE=replay` and redeploy so judges never ring a real phone (the README says judges get replay).
+
 ## Divide and conquer
 
 Each lane is independent once section 1 (service role key + seed) and section 2 (Vercel deploy) of KEYS_TODO are done. Do those two first, together, about 10 minutes.

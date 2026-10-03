@@ -1,36 +1,67 @@
 "use client";
 
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
 import { buildScripts, speakingMs, type DispatcherScript } from "@/lib/replay/script";
 import { computeQuoteTotals, formatUsd, type Accessorial } from "@/lib/money";
-import { addDays, shortDate } from "@/lib/dates";
-import { VoiceTrace } from "@/components/callwall/voice-trace";
-import { Odometer } from "@/components/freight/odometer";
+import { addDays } from "@/lib/dates";
 import { RubberStamp } from "@/components/freight/rubber-stamp";
-import { ContainerDoor } from "@/components/freight/container-door";
-import { StatusPill } from "@/components/callwall/status-pill";
 
 type Fields = Record<string, unknown>;
+type Phase = "ask" | "call" | "rank" | "book";
 
-// The landing preview runs the recorded scripts faster than real time so a visitor sees the whole run.
-const PREVIEW_SPEED = 2.4;
+// The recorded calls play faster than real time so a visitor sees the whole run in about half a minute.
+const CALL_SPEED = 4;
+const ASK_MS = 3400;
+const RANK_MS = 3000;
+const BOOK_MS = 6000;
+const REQUEST = "PHGU 482913-7 lands Monday. Get it to our Atlanta DC by Friday, cheapest reliable option. Book it if it's under our limit.";
+
+const STEPS: { key: Phase; label: string; say: string }[] = [
+  { key: "ask", label: "Ask", say: "Your agent asks PortCall for drayage quotes." },
+  { key: "call", label: "Call", say: "PortCall phones 3 carriers at once and writes down every price." },
+  { key: "rank", label: "Rank", say: "Quotes are ranked by real cost: the price plus port late fees." },
+  { key: "book", label: "Book", say: "PortCall books the lowest real cost and holds the card." },
+];
+const NOTES: Record<string, string> = {
+  marshgrass: "Picks up on time",
+  sweetgrass: "Picks up on time, adds a $75 pre-pull fee",
+  ironclad: "Picks up after the last free day",
+};
+const LATE_FILL = "repeating-linear-gradient(135deg, rgb(var(--red-rgb)) 0 4px, rgb(var(--red-rgb) / 0.55) 4px 8px)";
 
 /** Precompute when each line of each script starts and ends, like the replay does. */
 function plan(scripts: DispatcherScript[]) {
   return scripts.map((s, i) => {
-    let t = 600 + i * 450 + s.ringSeconds * 1000;
+    const answerAt = 600 + i * 450 + s.ringSeconds * 1000;
+    let t = answerAt;
     const lines = s.lines.map((l, j) => {
       t += j === 0 ? 0 : l.role === "user" ? 520 : 680;
       const start = t;
       t += speakingMs(l);
       return { ...l, start, end: t };
     });
-    return { script: s, answerAt: 600 + i * 450 + s.ringSeconds * 1000, lines, endAt: t + 900 };
+    return { script: s, answerAt, lines, endAt: t + 900 };
   });
 }
 
-/** Landing-page preview of the Call Wall. A labeled replay of the recorded scripts, never a live call. */
+/** Four bars that move only while someone on that call is talking: blue for PortCall, green for the dispatcher. */
+function Talking({ who }: { who: "assistant" | "user" | null }) {
+  return (
+    <span className="flex h-4 items-end gap-[3px]" aria-hidden>
+      {[0, 1, 2, 3].map((i) => (
+        <motion.span
+          key={i}
+          className={`w-[3px] rounded-full ${who === "assistant" ? "bg-stamp" : who === "user" ? "bg-live" : "bg-dim"}`}
+          animate={{ height: who ? ["30%", "100%", "45%", "85%", "30%"] : "25%" }}
+          transition={who ? { duration: 0.9, repeat: Infinity, delay: i * 0.12, ease: "easeInOut" } : { duration: 0.2 }}
+        />
+      ))}
+    </span>
+  );
+}
+
+/** Landing-page explainer: a labeled, sped-up replay of one recorded quote run, never a live call. */
 export function HeroPreview() {
   const reduce = useReducedMotion();
   const today = new Date().toISOString().slice(0, 10);
@@ -48,26 +79,34 @@ export function HeroPreview() {
     [eta],
   );
   const timeline = useMemo(() => plan(buildScripts(container)), [container]);
-  const total = Math.max(...timeline.map((c) => c.endAt)) + 7000;
-  const [tick, setT] = useState(0);
+  const callEnd = Math.max(...timeline.map((c) => c.endAt));
+  const callMs = callEnd / CALL_SPEED;
+  const total = ASK_MS + callMs + RANK_MS + BOOK_MS;
+  const [tick, setTick] = useState(0);
   // Reduced motion shows the finished run instead of playing it.
-  const t = reduce ? total - 1 : tick;
+  const r = reduce ? total - 1 : tick;
 
   useEffect(() => {
     if (reduce) return;
     const start = performance.now();
     let raf = 0;
     const loop = (now: number) => {
-      setT(((now - start) * PREVIEW_SPEED) % total);
+      setTick((now - start) % total);
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
   }, [reduce, total]);
 
+  const phase: Phase = r < ASK_MS ? "ask" : r < ASK_MS + callMs ? "call" : r < ASK_MS + callMs + RANK_MS ? "rank" : "book";
+  const step = STEPS.findIndex((s) => s.key === phase);
+  const t = phase === "ask" ? 0 : Math.min((r - ASK_MS) * CALL_SPEED, callEnd);
+  const ranked = phase === "rank" || phase === "book";
+  const typed = phase === "ask" ? REQUEST.slice(0, Math.ceil((r / (ASK_MS * 0.75)) * REQUEST.length)) : REQUEST;
+
   const channels = timeline.map((c) => {
     const said = c.lines.filter((l) => l.end <= t);
-    const speaking = c.lines.find((l) => l.start <= t && t < l.end);
+    const speaking = c.lines.find((l) => l.start <= t && t < l.end) ?? null;
     const fields: Fields = {};
     for (const l of said) if (l.fields) Object.assign(fields, l.fields);
     const totals = computeQuoteTotals(
@@ -82,125 +121,193 @@ export function HeroPreview() {
       container.last_free_day,
       17500,
     );
-    const status = t < 600 ? "queued" : t < c.answerAt ? "ringing" : t < c.endAt ? "in_progress" : "ended";
-    return { ...c, said, speaking, fields, totals, status };
+    const status = phase === "ask" || t < 600 ? "waiting" : t < c.answerAt ? "ringing" : t < c.endAt ? "talking" : "done";
+    const partial = speaking ? speaking.text.slice(0, Math.max(1, Math.round(((t - speaking.start) / (speaking.end - speaking.start)) * speaking.text.length))) : null;
+    const latest = speaking ? { role: speaking.role, text: partial! } : said.at(-1) ?? null;
+    return { ...c, speaking, latest, totals, status };
   });
-  const allDone = channels.every((c) => c.status === "ended");
-  const winner = allDone ? [...channels].sort((a, b) => (a.totals.risk_adjusted_cents ?? 0) - (b.totals.risk_adjusted_cents ?? 0))[0] : null;
+  const order = ranked ? [...channels].sort((a, b) => (a.totals.risk_adjusted_cents ?? 0) - (b.totals.risk_adjusted_cents ?? 0)) : channels;
+  const max = Math.max(...channels.map((c) => c.totals.risk_adjusted_cents ?? 0), 1);
+  const winner = ranked ? order[0] : null;
 
   return (
-    <div className="relative">
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <ContainerDoor number="PHGU4829137" size="40HC" compact />
-          <div>
-            <div className="stencil text-[20px] leading-none text-fg">PHGU 482913-7</div>
-            <div className="mt-1 text-[12.5px] text-muted">Wando Welch to Fairburn, GA</div>
+    <div className="text-left">
+      {/* where we are in the story */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <ol className="flex items-center gap-2 sm:gap-3">
+          {STEPS.map((s, i) => (
+            <li key={s.key} className="flex items-center gap-2 sm:gap-3">
+              <span
+                className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-[13px] font-semibold transition-colors duration-300 ${
+                  i === step ? "bg-fg text-white" : i < step ? "text-fg" : "text-dim"
+                }`}
+              >
+                <span className="font-mono text-[11.5px] opacity-70">{i + 1}</span>
+                {s.label}
+              </span>
+              {i < STEPS.length - 1 && <span className={`h-px w-4 sm:w-8 ${i < step ? "bg-fg" : "bg-rule"}`} />}
+            </li>
+          ))}
+        </ol>
+        <span className="text-[12.5px] font-semibold text-crane">Replay of a recorded run, sped up</span>
+      </div>
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.p
+          key={phase}
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -6 }}
+          transition={{ duration: 0.25 }}
+          className="mt-4 font-cond text-[24px] font-bold leading-tight tracking-[-0.01em] text-fg sm:text-[28px]"
+        >
+          {STEPS[step].say}
+        </motion.p>
+      </AnimatePresence>
+
+      {/* the agent's request */}
+      <div className="mt-5 flex items-start gap-3">
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-fg font-mono text-[11px] font-semibold text-white">AI</span>
+        <div className="min-w-0">
+          <div className="text-[12.5px] font-semibold text-muted">Your agent, over MCP</div>
+          <div className="mt-1 min-h-[48px] rounded-[14px] rounded-tl-[4px] bg-panel-2 px-4 py-2.5 text-[15px] leading-relaxed text-fg">
+            {typed}
+            {phase === "ask" && typed.length < REQUEST.length && <span className="ml-0.5 inline-block h-[1em] w-[2px] translate-y-[2px] animate-blink bg-fg" />}
           </div>
         </div>
-        <span className="text-[13px] font-semibold text-crane">Replay of a recorded quote run</span>
       </div>
-      <div className="relative pt-2">
-        <div className="absolute left-[-10px] right-[-10px] top-2 z-10 h-[9px] rounded-full bg-[linear-gradient(180deg,#D9DDE1,#8E959D_55%,#6A7179)] shadow-[0_3px_6px_-2px_rgba(0,0,0,0.35)]" aria-hidden />
-        <div className="grid gap-4 sm:grid-cols-3">
-          {channels.map((c, i) => {
+
+      {/* the three calls, then the ranking */}
+      <LayoutGroup>
+        <ol className="mt-5 space-y-2.5">
+          {order.map((c) => {
             const isWinner = winner?.script.key === c.script.key;
+            const late = c.totals.projected_demurrage_cents ?? 0;
+            const quoted = c.totals.all_in_cents ?? 0;
+            const real = c.totals.risk_adjusted_cents ?? quoted;
+            const price = ranked ? real : c.totals.all_in_cents;
+            const who = c.speaking?.role ?? null;
             return (
-              <motion.div key={c.script.key} layout transition={{ type: "spring", stiffness: 200, damping: 24 }} className="relative pt-4">
-                <svg className="absolute left-1/2 top-[-4px] z-20 -translate-x-1/2" width="44" height="24" viewBox="0 0 54 30" aria-hidden>
-                  <rect x="9" y="1" width="36" height="20" rx="4" fill="#2A2F35" />
-                  <rect x="12" y="4" width="30" height="6" rx="2" fill="#4A5159" />
-                  <path d="M17 21 v7 M37 21 v7" stroke="#2A2F35" strokeWidth="3" strokeLinecap="round" />
-                </svg>
-                <div
-                  className={`relative origin-top overflow-hidden rounded-[16px] border bg-sheet text-left transition-[box-shadow,transform,border-color] duration-500 ${
-                    c.status === "ringing" ? "animate-ring" : ""
-                  } ${isWinner ? "-translate-y-1 border-fg shadow-[0_2px_0_#121417,0_24px_50px_-26px_rgba(18,20,23,0.55)]" : "border-rule shadow-[0_14px_36px_-26px_rgba(18,20,23,0.45)]"}`}
-                >
-                  <div className="h-1.5" style={{ background: ["#121417", "#F2C230", "#EE86A4"][i] }} />
-                  <div className="px-4 pt-3">
-                    <StatusPill status={c.status} />
-                    <div className="mt-2 font-cond text-[19px] font-bold leading-tight text-fg">{c.script.providerName}</div>
+              <motion.li
+                key={c.script.key}
+                layout
+                transition={{ type: "spring", stiffness: 220, damping: 26 }}
+                className={`rounded-[14px] border bg-sheet px-4 py-3 transition-[border-color,box-shadow] duration-500 ${
+                  isWinner && phase === "book" ? "border-fg shadow-[0_14px_34px_-22px_rgba(18,20,23,0.6)]" : "border-rule"
+                } ${c.status === "waiting" ? "opacity-60" : ""}`}
+              >
+                <div className="grid grid-cols-[36px_minmax(0,1fr)_auto] items-center gap-3 sm:gap-4">
+                  {/* the call itself */}
+                  <span
+                    className={`relative grid h-9 w-9 place-items-center rounded-full transition-colors ${
+                      c.status === "ringing" ? "bg-crane text-white" : c.status === "talking" ? "bg-live/10" : "bg-panel-2 text-muted"
+                    }`}
+                  >
+                    {c.status === "ringing" && <span className="absolute inset-0 animate-ping rounded-full bg-crane/40" />}
+                    {c.status === "talking" ? (
+                      <Talking who={who} />
+                    ) : (
+                      <svg viewBox="0 0 24 24" className="relative h-4 w-4" aria-hidden>
+                        {c.status === "done" ? (
+                          <path d="M5 12.5 L10 17 L19 7" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+                        ) : (
+                          <path
+                            d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.6a1 1 0 0 1-.25 1z"
+                            fill="currentColor"
+                          />
+                        )}
+                      </svg>
+                    )}
+                  </span>
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+                      <span className="font-semibold text-fg">{c.script.providerName}</span>
+                      {isWinner && phase === "book" && (
+                        <RubberStamp size="sm" color="green" rotate={-4}>
+                          Booked
+                        </RubberStamp>
+                      )}
+                    </div>
+                    <div className={`mt-0.5 truncate text-[13px] ${ranked && late > 0 ? "text-red" : "text-muted"}`}>
+                      {ranked ? (
+                        <>
+                          {NOTES[c.script.key]}
+                          {late > 0 && <>: +{formatUsd(late)} in late fees</>}
+                        </>
+                      ) : c.status === "waiting" ? (
+                        "Waiting to call"
+                      ) : c.status === "ringing" ? (
+                        "Ringing..."
+                      ) : c.latest ? (
+                        <>
+                          <span className={`font-semibold ${c.latest.role === "assistant" ? "text-stamp" : "text-live"}`}>
+                            {c.latest.role === "assistant" ? "PortCall" : "Dispatcher"}:
+                          </span>{" "}
+                          {c.latest.text}
+                        </>
+                      ) : (
+                        "Connected"
+                      )}
+                    </div>
                   </div>
-                  <div className="mx-4 mt-2 rounded-[8px] border border-rule bg-[linear-gradient(rgba(36,83,214,0.07)_1px,transparent_1px),linear-gradient(90deg,rgba(36,83,214,0.07)_1px,transparent_1px)] bg-[size:10px_10px]">
-                    <VoiceTrace speaking={(c.speaking?.role as "assistant" | "user") ?? null} live={c.status === "in_progress"} />
-                  </div>
-                  <div className="mt-3 h-[88px] overflow-hidden border-y border-rule bg-panel-2 px-4 py-2">
-                    <AnimatePresence initial={false}>
-                      {[...c.said, ...(c.speaking ? [{ ...c.speaking, text: c.speaking.text.slice(0, Math.max(1, Math.round(((t - c.speaking.start) / (c.speaking.end - c.speaking.start)) * c.speaking.text.length))), partial: true }] : [])]
-                        .slice(-3)
-                        .map((l) => (
-                          <motion.p
-                            key={`l-${l.start}`}
-                            layout
-                            initial={{ opacity: 0, y: 8 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0 }}
-                            className={`truncate text-[12.5px] leading-[1.6] ${l.role === "assistant" ? "text-muted" : "text-fg"}`}
-                          >
-                            <span className={`mr-1.5 text-[10.5px] font-semibold ${l.role === "assistant" ? "text-stamp" : "text-live"}`}>{l.role === "assistant" ? "PortCall" : "Dispatch"}</span>
-                            <span className="marker" data-on={Boolean(l.fields) && !("partial" in l)}>
-                              {l.text}
-                            </span>
-                          </motion.p>
-                        ))}
+                  <div className="min-w-[88px] text-right">
+                    {ranked && late > 0 && <div className="font-mono text-[12px] text-dim line-through">{formatUsd(quoted)}</div>}
+                    <AnimatePresence mode="popLayout" initial={false}>
+                      {price != null ? (
+                        <motion.div
+                          key={`${price}-${ranked}`}
+                          className={`font-mono text-[18px] font-semibold tabular-nums ${ranked && late > 0 ? "text-red" : "text-fg"}`}
+                          initial={{ scale: 1.6, opacity: 0, rotate: -6 }}
+                          animate={{ scale: 1, opacity: 1, rotate: 0 }}
+                          exit={{ opacity: 0 }}
+                          transition={{ type: "spring", stiffness: 520, damping: 24 }}
+                        >
+                          {formatUsd(price)}
+                        </motion.div>
+                      ) : (
+                        <div className="font-mono text-[18px] text-dim">$ –</div>
+                      )}
                     </AnimatePresence>
                   </div>
-                  <dl className="space-y-1.5 px-4 py-3 text-[13px]">
-                    {[
-                      ["Linehaul", c.fields.linehaul_cents != null ? formatUsd(c.fields.linehaul_cents as number) : null],
-                      ["Pickup", c.fields.earliest_pickup ? shortDate(c.fields.earliest_pickup as string) : null],
-                    ].map(([k, v]) => (
-                      <div key={k as string} className="flex items-baseline gap-2">
-                        <dt className="text-muted">{k}</dt>
-                        <span className="mb-[3px] flex-1 border-b border-dotted border-dim/70" />
-                        <dd>
-                          <AnimatePresence mode="popLayout" initial={false}>
-                            {v ? (
-                              <motion.span
-                                key={v as string}
-                                className={`inline-block font-mono font-semibold ${k === "Pickup" && (c.totals.projected_demurrage_cents ?? 0) > 0 ? "text-red" : "text-stamp"}`}
-                                initial={{ scale: 1.9, rotate: -10, opacity: 0 }}
-                                animate={{ scale: 1, rotate: 0, opacity: 1 }}
-                                transition={{ type: "spring", stiffness: 600, damping: 22 }}
-                              >
-                                {v}
-                              </motion.span>
-                            ) : (
-                              <span className="text-dim">–</span>
-                            )}
-                          </AnimatePresence>
-                        </dd>
-                      </div>
-                    ))}
-                  </dl>
-                  <div className="flex items-end justify-between border-t border-rule px-4 pb-3.5 pt-2.5">
-                    <span className="pb-0.5 text-[13px] font-semibold text-fg">All-in</span>
-                    {c.totals.all_in_cents != null && c.fields.earliest_pickup ? (
-                      <Odometer value={formatUsd(c.totals.all_in_cents)} className="text-[22px] text-fg" />
-                    ) : (
-                      <span className="font-mono text-[22px] text-dim">$ –</span>
-                    )}
-                  </div>
-                  {allDone && (c.totals.projected_demurrage_cents ?? 0) > 0 && (
-                    <div className="px-4 pb-3">
-                      <RubberStamp size="sm" rotate={-2}>
-                        Misses LFD +{formatUsd(c.totals.projected_demurrage_cents)}
-                      </RubberStamp>
-                    </div>
-                  )}
-                  {isWinner && (
-                    <div className="absolute right-3 top-[64px]">
-                      <RubberStamp size="md" rotate={-11}>
-                        Awarded
-                      </RubberStamp>
-                    </div>
+                </div>
+                {/* always laid out, so the panel never changes height while it loops */}
+                <div className={`ml-[48px] mt-2.5 flex h-2 overflow-hidden rounded-full bg-panel-2 transition-opacity sm:ml-[52px] ${ranked ? "opacity-100" : "opacity-0"}`} aria-hidden>
+                  <motion.span className="bg-fg/75" initial={false} animate={{ width: ranked ? `${(quoted / max) * 100}%` : "0%" }} transition={{ duration: ranked ? 0.6 : 0, ease: "easeOut" }} />
+                  {late > 0 && (
+                    <motion.span
+                      className="border-l-2 border-sheet"
+                      style={{ background: LATE_FILL }}
+                      initial={false}
+                      animate={{ width: ranked ? `${(late / max) * 100}%` : "0%" }}
+                      transition={{ duration: ranked ? 0.6 : 0, delay: ranked ? 0.55 : 0, ease: "easeOut" }}
+                    />
                   )}
                 </div>
-              </motion.div>
+              </motion.li>
             );
           })}
-        </div>
+        </ol>
+      </LayoutGroup>
+
+      {/* the booking */}
+      <div className="mt-4 flex min-h-[24px] flex-wrap gap-x-6 gap-y-1.5 text-[13.5px]">
+        <AnimatePresence>
+          {phase === "book" &&
+            ["Card held for $847 (Stripe, test mode)", "Tender emailed to Marshgrass", "Paid out when they deliver"].map((line, i) => (
+              <motion.span
+                key={line}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ delay: 0.5 + i * 0.35 }}
+                className="inline-flex items-center gap-1.5 font-semibold text-fg"
+              >
+                <svg viewBox="0 0 16 16" className="h-3.5 w-3.5 text-live" aria-hidden>
+                  <path d="M3 8.5 L6.5 12 L13 4.5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                {line}
+              </motion.span>
+            ))}
+        </AnimatePresence>
       </div>
     </div>
   );

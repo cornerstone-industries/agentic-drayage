@@ -6,11 +6,13 @@ Agents can't pick up a phone, and freight still runs on phone calls and email: 8
 
 Built for the Supabase Select Hackathon (theme: build something agents want).
 
-- **Live app:** `APP_URL_HERE`
+- **Live app:** https://portcall-three.vercel.app
 - **Judge login:** `judge@portcall.dev` / `portcall-judge-2026` (there is also a "Fill judge login" button on the sign-in page)
-- **MCP endpoint:** `APP_URL_HERE/api/mcp` with `Authorization: Bearer <key from Settings > Agent access>`
+- **MCP endpoint:** `https://portcall-three.vercel.app/api/mcp` with `Authorization: Bearer <key from Settings > Agent access>`
 
 All data is synthetic: fictional importer, carriers, rates and addresses. Stripe runs in test mode only.
+
+**Replay and live:** outside our stage demo the app runs in replay mode, so judges never ring a real phone: recorded dispatcher answers go through the real webhook, and extraction (Claude), ranking (Claude), Realtime, Stripe booking, the Resend tender email and capture on delivery all run for real. Live mode (`CALL_MODE=live`) places the same three calls through Vapi.
 
 ## How it works
 
@@ -76,7 +78,7 @@ Every arrow that changes state writes to Supabase first; the UI only animates wh
 Claude Desktop / claude.ai custom connector config:
 
 ```json
-{ "mcpServers": { "portcall": { "url": "APP_URL_HERE/api/mcp", "headers": { "Authorization": "Bearer <key>" } } } }
+{ "mcpServers": { "portcall": { "url": "https://portcall-three.vercel.app/api/mcp", "headers": { "Authorization": "Bearer <key>" } } } }
 ```
 
 Try: *"Container PHGU4829137 lands in Charleston in 2 days. Get it to our Atlanta DC by Friday, cheapest reliable option, book it if it's under our limit."*
