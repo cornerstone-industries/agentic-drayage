@@ -3,6 +3,7 @@
 import { createAdminClient, type AdminClient } from "@/lib/supabase/admin";
 import { logEvent } from "@/lib/events";
 import { aiMode, extractQuote, recommendQuotes } from "@/lib/ai";
+import { recordLaneRates } from "@/lib/lanes";
 import { QUOTE_FIELDS, type ContainerContext, type ExtractedQuote, type RankableQuote, type TranscriptLineInput } from "@/lib/ai/types";
 import { computeQuoteTotals, formatUsd, type Accessorial } from "@/lib/money";
 import { demurragePerDayCents } from "@/lib/env";
@@ -194,6 +195,8 @@ export async function finalizeQuoteRequest(quoteRequestId: string, opts: { force
   if (recErr) throw new Error(`recommendation insert failed: ${recErr.message}`);
 
   const winner = usable.find((q) => q.id === rec.winner_quote_id)!;
+  // Every ranked run adds its quotes to the lane history (never throws).
+  await recordLaneRates(db, { importerId: importer.id, container, quotes: usable, winnerId: winner.id });
   await db.from("containers").update({ status: "quoted" }).eq("id", container.id);
   await logEvent(db, container.id, "recommended", {
     quote_request_id: quoteRequestId,

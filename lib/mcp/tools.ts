@@ -32,7 +32,8 @@ import {
   type QuoteView,
   type RecommendationView,
 } from "./schemas";
-import { sayBooking, sayContainers, sayQuotes, sayRequest, sayStatus, type Contacts } from "./narrate";
+import { sayBooking, sayContainers, sayQuotes, sayRequest, sayStatus, type Contacts, type Usual } from "./narrate";
+import { getLaneHistory, laneOf } from "@/lib/lanes";
 
 type McpCtx = { http?: { authInfo?: { extra?: Record<string, unknown> } } };
 
@@ -575,8 +576,12 @@ export function registerPortCallTools(server: McpServer): void {
       const booking = bookingRow ? toBookingView(bookingRow, bookingRow.provider_id ? names.get(bookingRow.provider_id) ?? null : null) : null;
       const perDay = demurragePerDayCents();
       const containerView = toContainerView(container, today);
+      // Lane history, so the agent can say how each quote compares with what that carrier usually charges.
+      const lane = laneOf(container);
+      const history = lane ? await getLaneHistory(db, importerId, lane) : null;
+      const usual: Usual = new Map((history?.carriers ?? []).map((c) => [c.name, { medianCents: c.medianCents, lateRate: c.lateRate, count: c.count }]));
       return {
-        say: sayQuotes({ container: containerView, calls, quotes, recommendation, booking, contacts, saidByCall, limitCents, runStatus: qr?.status ?? null }),
+        say: sayQuotes({ container: containerView, calls, quotes, recommendation, booking, contacts, saidByCall, limitCents, runStatus: qr?.status ?? null, usual }),
         container: containerView,
         auto_book_limit_cents: limitCents,
         auto_book_limit_usd: money(limitCents),

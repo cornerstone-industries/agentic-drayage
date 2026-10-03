@@ -8,6 +8,7 @@ import { callMode, demurragePerDayCents } from "@/lib/env";
 import { aiMode } from "@/lib/ai";
 import { laneCheck } from "@/lib/quotes/request";
 import { stateFromAddress } from "@/lib/money";
+import { getLaneHistory, laneOf } from "@/lib/lanes";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +21,8 @@ export default async function ContainerPage({ params }: { params: Promise<{ id: 
   if (!snapshot) notFound();
   const { data: providers } = await supabase.from("providers").select("*").order("created_at");
 
+  const lane = laneOf(snapshot.container);
+  const laneHistory = lane ? await getLaneHistory(supabase, session.importer.id, lane) : null;
   const port = snapshot.container.port ?? "Charleston";
   const dest = stateFromAddress(snapshot.container.destination_address);
   const eligibleIds: string[] = [];
@@ -35,6 +38,7 @@ export default async function ContainerPage({ params }: { params: Promise<{ id: 
       <TopBar importerName={session.importer.name} />
       <main className="mx-auto max-w-[1440px] px-4 pb-20 pt-6 sm:px-6">
         <ContainerLive
+          laneHistory={laneHistory}
           initial={snapshot}
           providers={providers ?? []}
           eligibleIds={eligibleIds}

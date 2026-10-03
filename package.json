@@ -20,7 +20,8 @@
     "demo:reset": "tsx scripts/reset-demo.ts",
     "vercel:env": "tsx scripts/vercel-env.ts",
     "setup:stripe-webhooks": "tsx scripts/setup-stripe-webhooks.ts",
-    "vapi:latency": "tsx scripts/vapi-latency.ts"
+    "vapi:latency": "tsx scripts/vapi-latency.ts",
+    "seed:lanes": "tsx scripts/seed-lane-history.ts"
   },
   "dependencies": {
     "@ai-sdk/gateway": "^4.0.103",

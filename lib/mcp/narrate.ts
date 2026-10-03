@@ -21,6 +21,21 @@ const CALL_WORDS: Record<string, string> = {
 };
 
 export type Contacts = Map<string, string | null>; // provider_id -> contact name
+/** Lane history per carrier name: typical all-in and how often they picked up after the last free day. */
+export type Usual = Map<string, { medianCents: number; lateRate: number; count: number }>;
+
+const pctOf = (x: number) => `${Math.round(x * 100)}%`;
+/** "about its usual", "4% below its usual $833", "12% above its usual $833". */
+function vsUsual(cents: number, u: { medianCents: number } | undefined): string {
+  if (!u) return "";
+  const d = ((cents - u.medianCents) / u.medianCents) * 100;
+  const typical = `$${Math.round(u.medianCents / 100).toLocaleString("en-US")}`;
+  return Math.abs(d) < 2 ? `about its usual ${typical} on this lane` : `${Math.abs(d).toFixed(0)}% ${d > 0 ? "above" : "below"} its usual ${typical} on this lane`;
+}
+function track(u: { lateRate: number; count: number } | undefined): string {
+  if (!u || u.count < 5) return "";
+  return u.lateRate >= 0.2 ? `late on ${pctOf(u.lateRate)} of past loads` : `on time on ${pctOf(1 - u.lateRate)} of past loads`;
+}
 
 /** What was heard so far on one call, e.g. "$650 linehaul, fuel $117, chassis $40/day x 2, pickup Tue 10/6". */
 function heard(q: QuoteView): string {
@@ -34,12 +49,13 @@ function heard(q: QuoteView): string {
 }
 
 /** One ranked line: price, the real cost when late fees apply, and the reason in plain words. */
-function rankedLine(q: QuoteView, rank: number): string {
+function rankedLine(q: QuoteView, rank: number, u?: { medianCents: number; lateRate: number; count: number }): string {
   const late = q.projected_demurrage_cents ?? 0;
   const price = late > 0 && q.all_in_cents != null ? `${usd(q.all_in_cents + late)} real cost (${usd(q.all_in_cents)} quote + ${usd(late)} est. late fees)` : q.all_in_cents != null ? usd(q.all_in_cents) : "no price";
   const when = q.earliest_pickup ? `picks up ${day(q.earliest_pickup)}` : "no pickup date";
   const fit = q.can_meet_deadline === false ? ", misses the deliver-by date" : late > 0 ? ", after the last free day" : ", on time";
-  return `${rank}. ${q.provider_name}: ${price}, ${when}${fit}.`;
+  const history = [q.all_in_cents != null ? vsUsual(q.all_in_cents, u) : "", track(u)].filter(Boolean).join(", ");
+  return `${rank}. ${q.provider_name}: ${price}, ${when}${fit}.${history ? ` History: ${history}.` : ""}`;
 }
 
 export function sayPayment(b: BookingView, contact: string | null | undefined): string {
@@ -107,8 +123,10 @@ export function sayQuotes(args: {
   saidByCall: Map<string, string>;
   limitCents: number;
   runStatus: string | null;
+  usual?: Usual;
 }): string {
   const { container, calls, quotes, recommendation, booking, contacts, saidByCall, limitCents, runStatus } = args;
+  const usual = args.usual ?? new Map();
   const byCall = new Map(quotes.map((q) => [q.call_id, q]));
   const contactOf = (providerId: string | null) => (providerId ? contacts.get(providerId) : null);
 
@@ -118,7 +136,7 @@ export function sayQuotes(args: {
     const lines = [
       `Decision for ${box(container)}: ${winner ? `${winner.provider_name} at ${winner.all_in_cents != null ? usd(winner.all_in_cents) : "an unknown price"}` : recommendation.winner_provider_name}.`,
       recommendation.reasoning ?? "",
-      ...ranked.map((q, i) => rankedLine(q, q.rank ?? i + 1)),
+      ...ranked.map((q, i) => rankedLine(q, q.rank ?? i + 1, usual.get(q.provider_name))),
     ];
     const active = booking && booking.payment_status !== "canceled" && booking.payment_status !== "failed";
     if (active) {
@@ -141,8 +159,10 @@ export function sayQuotes(args: {
     const q = byCall.get(c.call_id);
     const name = who(c.provider_name, contactOf(c.provider_id));
     const facts = q ? heard(q) : "";
+    const compare = q?.all_in_cents != null ? vsUsual(q.all_in_cents, usual.get(c.provider_name)) : "";
     const said = saidByCall.get(c.call_id);
-    return `${name}: ${CALL_WORDS[c.status] ?? c.status}${facts ? `. Heard ${facts}` : ""}${said ? `. "${said}"` : ""}`;
+    const total = q?.all_in_cents != null ? `. ${usd(q.all_in_cents)} all-in so far${compare ? `, ${compare}` : ""}` : "";
+    return `${name}: ${CALL_WORDS[c.status] ?? c.status}${facts ? `. Heard ${facts}` : ""}${total}${said ? `. "${said}"` : ""}`;
   });
   const done = calls.every((c) => c.status === "ended" || c.status === "no_answer" || c.status === "failed");
   lines.push(done ? "All calls are done. Ranking them by real cost now." : "Still on the phone. I'll report as soon as there's news.");

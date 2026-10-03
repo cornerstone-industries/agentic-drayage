@@ -15,6 +15,8 @@ import { PaymentStamp } from "./payment-stamp";
 import { Timeline } from "./timeline";
 import { lossReasons } from "./fields";
 import { useContainerLive } from "./use-container-live";
+import { LaneHistoryPanel } from "@/components/lanes/lane-history";
+import type { LaneHistory } from "@/lib/lanes";
 import { resetBox } from "@/app/containers/[id]/actions";
 import type { LiveSnapshot } from "@/lib/live/snapshot";
 import type { Provider, Quote } from "@/lib/types";
@@ -22,6 +24,7 @@ import type { Provider, Quote } from "@/lib/types";
 const CLOSED = new Set(["booked", "accepted", "picked_up", "delivered"]);
 
 export function ContainerLive({
+  laneHistory,
   initial,
   providers,
   eligibleIds,
@@ -31,6 +34,7 @@ export function ContainerLive({
   demurragePerDayCents,
   autoBook,
 }: {
+  laneHistory: LaneHistory | null;
   initial: LiveSnapshot;
   providers: Provider[];
   eligibleIds: string[];
@@ -184,6 +188,16 @@ export function ContainerLive({
   const state2 = stateFromAddress(c.destination_address);
   const autoNote = [...events].reverse().find((e) => e.type === "auto_book_failed" || e.type === "auto_book_skipped");
   const failNote = activeQr?.status === "failed" ? [...events].reverse().find((e) => e.type === "quote_failed") : undefined;
+
+  // Today's quotes, for comparing with what each carrier usually charges on this lane.
+  const todayByName = useMemo(() => {
+    const out: Record<string, number> = {};
+    for (const q of state.quotes) {
+      const name = q.provider_id ? providerMap.get(q.provider_id)?.name : undefined;
+      if (name && q.all_in_cents != null && activeQr && state.calls.some((c) => c.id === q.call_id && c.quote_request_id === activeQr.id)) out[name] = q.all_in_cents;
+    }
+    return out;
+  }, [state.quotes, state.calls, providerMap, activeQr]);
 
   const headline = calling
     ? "On the phone with your carriers"
@@ -380,6 +394,8 @@ export function ContainerLive({
 
         {aiEngine === "unconfigured" && <p className="mt-6 text-[13px] text-red">Claude is not configured: set AI_GATEWAY_API_KEY to extract quotes and rank them.</p>}
       </div>
+
+      {laneHistory && <LaneHistoryPanel history={laneHistory} today={todayByName} />}
 
       {/* The log: every step, as Realtime delivers it */}
       <section className="mt-12" aria-label="Log">
