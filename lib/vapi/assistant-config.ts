@@ -40,10 +40,10 @@ export type AssistantConfigArgs = {
 export function buildAssistantConfig({ webhookUrl, webhookSecret }: AssistantConfigArgs) {
   return {
     name: "PortCall quote caller",
-    // Gemini runs the conversation (fast, Google multimodal); Claude still does extraction and ranking.
+    // Claude Haiku answered in ~360ms on test calls; Gemini 3.5 Flash in Vapi took 700-975ms and twice never replied.
     model: {
-      provider: "google",
-      model: "gemini-3.5-flash",
+      provider: "anthropic",
+      model: "claude-haiku-4-5-20251001",
       temperature: 0.3,
       maxTokens: 120,
       messages: [{ role: "system", content: SYSTEM_PROMPT }],
@@ -58,7 +58,9 @@ export function buildAssistantConfig({ webhookUrl, webhookSecret }: AssistantCon
       waitSeconds: 0.1,
       transcriptionEndpointingPlan: { onPunctuationSeconds: 0.1, onNoPunctuationSeconds: 0.6, onNumberSeconds: 0.4 },
     },
-    stopSpeakingPlan: { numWords: 0, voiceSeconds: 0.2, backoffSeconds: 0.8 },
+    // Venue noise cut her off mid-sentence with numWords 0; need two real words before yielding, and filter background speech.
+    stopSpeakingPlan: { numWords: 2, voiceSeconds: 0.3, backoffSeconds: 0.8 },
+    backgroundSpeechDenoisingPlan: { smartDenoisingPlan: { enabled: true } },
     firstMessage: FIRST_MESSAGE,
     firstMessageMode: "assistant-speaks-first",
     endCallMessage: "Thanks again, goodbye.",
