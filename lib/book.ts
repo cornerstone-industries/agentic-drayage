@@ -157,7 +157,8 @@ export async function bookQuote(args: { quoteId: string; importerId: string; boo
         payment_method: importer.default_payment_method_id,
         off_session: true,
         confirm: true,
-        error_on_requires_action: true, // nobody is there to complete 3DS: fail fast instead of hanging
+        // No error_on_requires_action: Stripe rejects it with dashboard-managed payment methods, and
+        // off_session already makes a card that needs 3DS fail with authentication_required.
         capture_method: "manual",
         transfer_data: { destination: provider.stripe_account_id },
         application_fee_amount: fee,
