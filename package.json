@@ -18,7 +18,8 @@
     "setup:vapi": "tsx scripts/setup-vapi.ts",
     "setup:stripe": "tsx scripts/setup-stripe.ts",
     "demo:reset": "tsx scripts/reset-demo.ts",
-    "vercel:env": "tsx scripts/vercel-env.ts"
+    "vercel:env": "tsx scripts/vercel-env.ts",
+    "setup:stripe-webhooks": "tsx scripts/setup-stripe-webhooks.ts"
   },
   "dependencies": {
     "@ai-sdk/gateway": "^4.0.103",
