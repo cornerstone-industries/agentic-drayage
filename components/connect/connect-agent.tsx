@@ -55,13 +55,15 @@ export function ConnectAgent({ endpoint, apiKey, limit, mode }: { endpoint: stri
   });
   const how: Record<ClientKey, string> = {
     "claude-code": "Run this in your terminal, then start Claude Code.",
-    claude: "In Claude on the web or desktop, open Settings, then Connectors, then Add custom connector. Name it PortCall and paste this URL. It then works in the Claude mobile app too.",
+    claude: "Tap Add to Claude, or in Claude open Customize, then Connectors, then Add, then Add custom connector. Name it PortCall, paste this URL and choose No sign-in. It works in the Claude mobile app too.",
     cursor: "Click to install, or paste this into ~/.cursor/mcp.json.",
     vscode: "Click to install, or paste this into .vscode/mcp.json.",
     other: "Works with any MCP client that speaks Streamable HTTP.",
   };
   const install =
-    client === "cursor"
+    client === "claude"
+      ? { label: "Add to Claude", href: `https://claude.ai/customize/connectors?modal=add-custom-connector&connectorName=PortCall&connectorUrl=${encodeURIComponent(`${endpoint}?key=${apiKey}`)}` }
+      : client === "cursor"
       ? { label: "Add to Cursor", href: `cursor://anysphere.cursor-deeplink/mcp/install?name=portcall&config=${encodeURIComponent(b64(JSON.stringify({ url: endpoint, headers: { Authorization: `Bearer ${apiKey}` } })))}` }
       : client === "vscode"
         ? { label: "Add to VS Code", href: `vscode:mcp/install?${encodeURIComponent(JSON.stringify({ name: "portcall", type: "http", url: endpoint, headers: { Authorization: `Bearer ${apiKey}` } }))}` }
