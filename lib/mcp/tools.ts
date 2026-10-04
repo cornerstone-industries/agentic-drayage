@@ -315,17 +315,23 @@ async function waitForNews(db: AdminClient, quoteRequestId: string, seconds: num
   const snapshot = async () => {
     const calls = many(await db.from("calls").select("id, status").eq("quote_request_id", quoteRequestId), "calls lookup");
     const ids = calls.map((c) => c.id);
-    const [quotes, recs] = await Promise.all([
+    const [quotes, recs, run] = await Promise.all([
       ids.length ? db.from("quotes").select("call_id, updated_at").in("call_id", ids).then((r) => many(r, "quotes lookup")) : Promise.resolve([]),
       db.from("recommendations").select("id").eq("quote_request_id", quoteRequestId).then((r) => many(r, "recommendation lookup")),
+      db.from("quote_requests").select("status").eq("id", quoteRequestId).maybeSingle().then((r) => r.data?.status ?? null),
     ]);
-    return JSON.stringify([calls.map((c) => `${c.id}:${c.status}`).sort(), quotes.map((q) => `${q.call_id}:${q.updated_at}`).sort(), recs.length]);
+    // Every call has hung up but the run is still open: PortCall is reading each price from the final transcript and
+    // ranking (about 10 seconds). That is not news yet; answering now would read as "no price".
+    const settling = calls.length > 0 && calls.every((c) => CALL_DONE.has(c.status ?? "")) && !recs.length && run !== "complete" && run !== "failed";
+    const key = JSON.stringify([calls.map((c) => `${c.id}:${c.status}`).sort(), quotes.map((q) => `${q.call_id}:${q.updated_at}`).sort(), recs.length, run]);
+    return { key, settling };
   };
   const start = await snapshot();
   const deadline = Date.now() + seconds * 1000;
   while (Date.now() < deadline) {
     await sleepMs(1500);
-    if ((await snapshot()) !== start) return;
+    const now = await snapshot();
+    if (now.key !== start.key && !now.settling) return;
   }
 }
 
@@ -373,9 +379,10 @@ function quotesNextStep(args: {
   }
   const done = calls.filter((c) => CALL_DONE.has(c.status)).length;
   if (qr.status === "complete" || (calls.length > 0 && done === calls.length)) {
-    return quotes.some((q) => q.all_in_cents != null)
-      ? "All calls have ended and Claude is ranking the quotes. Call get_quotes again in 5 seconds."
-      : "All calls ended without a usable price. Call request_quotes to try again.";
+    if (quotes.some((q) => q.all_in_cents != null)) return "All calls have ended and Claude is ranking the quotes. Call get_quotes again with wait_seconds=15.";
+    return qr.status === "complete"
+      ? "All calls ended without a usable price. Call request_quotes to try again."
+      : "All calls have ended. PortCall is reading each price from the final transcript and ranking them, which takes about 10 seconds. Call get_quotes again with wait_seconds=15; do not report a missing price yet.";
   }
   const priced = quotes.filter((q) => q.all_in_cents != null).length;
   return `${done} of ${calls.length} calls have finished and ${priced} quote${priced === 1 ? " has" : "s have"} a price so far. Calls take about 1 to 3 minutes. Call get_quotes again in 5 to 10 seconds; the recommendation appears when every call has ended.`;

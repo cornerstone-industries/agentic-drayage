@@ -173,7 +173,7 @@ export function sayQuotes(args: {
     return `${name}: ${CALL_WORDS[c.status] ?? c.status}${facts ? `. Heard ${facts}` : ""}${total}${said ? `. "${said}"` : ""}`;
   });
   const done = calls.every((c) => c.status === "ended" || c.status === "no_answer" || c.status === "failed");
-  lines.push(done ? "All calls are done. Ranking them by real cost now." : "Still on the phone. I'll report as soon as there's news.");
+  lines.push(done ? "All calls are done. Reading each price from the call and ranking them by real cost now, about 10 seconds." : "Still on the phone. I'll report as soon as there's news.");
   return lines.join("\n");
 }
 
