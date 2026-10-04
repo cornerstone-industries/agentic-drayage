@@ -38,10 +38,10 @@ export type AssistantConfigArgs = {
 export function buildAssistantConfig({ webhookUrl, webhookSecret }: AssistantConfigArgs) {
   return {
     name: "PortCall quote caller",
-    // Trying Gemini 2.5 Flash-Lite (~0.32s published TTFT). Claude Haiku measured 0.34-0.44s; GPT-4o-mini 0.49s and looped.
+    // Measured per reply on our calls: Claude Haiku 0.33-0.48s, Gemini 2.5 Flash-Lite 0.48-0.58s, GPT-4o-mini 0.49s (looped).
     model: {
-      provider: "google",
-      model: "gemini-2.5-flash-lite",
+      provider: "anthropic",
+      model: "claude-haiku-4-5-20251001",
       temperature: 0.3,
       maxTokens: 120,
       messages: [{ role: "system", content: SYSTEM_PROMPT }],
@@ -53,7 +53,7 @@ export function buildAssistantConfig({ webhookUrl, webhookSecret }: AssistantCon
     // finished. These cut the default 1.5s no-punctuation wait while giving spoken numbers a beat.
     startSpeakingPlan: {
       waitSeconds: 0.1,
-      transcriptionEndpointingPlan: { onPunctuationSeconds: 0.1, onNoPunctuationSeconds: 0.6, onNumberSeconds: 0.4 },
+      transcriptionEndpointingPlan: { onPunctuationSeconds: 0.1, onNoPunctuationSeconds: 0.3, onNumberSeconds: 0.3 },
     },
     // Venue noise cut her off mid-sentence (even mid-goodbye at numWords 2); she yields only to 4+ words of real speech.
     // (Smart denoising was tried and doubled transcriber latency to ~1.2s, so the prompt handles stray fragments instead.)
