@@ -14,7 +14,7 @@ export function Typewriter({ text, speedMs = 14 }: { text: string; speedMs?: num
   }, [text, speedMs, reduce]);
   const shown = reduce ? text.length : n;
   return (
-    <p className="text-[18px] leading-[1.6] text-fg">
+    <p className="text-[18px] font-semibold leading-[1.6] text-fg">
       {text.slice(0, shown)}
       {shown < text.length && <span className="ml-0.5 inline-block h-[1.05em] w-[2px] translate-y-[3px] animate-blink bg-fg" />}
     </p>
