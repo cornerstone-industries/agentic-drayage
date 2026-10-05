@@ -9,7 +9,7 @@ Agents can't pick up a phone, and freight still runs on phone calls and email: 8
 Built for the Supabase Select Hackathon (theme: build something agents want).
 
 - **Live app:** https://portcall-three.vercel.app
-- **Judge login:** `judge@portcall.dev` / `portcall-judge-2026` (there is also a "Fill judge login" button on the sign-in page)
+- **Judge login:** closed after the hackathon (Oct 4, 2026). The account still exists; set a new password with `JUDGE_PASSWORD=... npm run seed`.
 - **MCP endpoint:** `https://portcall-three.vercel.app/api/mcp` with `Authorization: Bearer <key from Settings > Agent access>`
 
 All data is synthetic: fictional importer, carriers, rates and addresses. Stripe runs in test mode only.
@@ -18,7 +18,7 @@ All data is synthetic: fictional importer, carriers, rates and addresses. Stripe
 
 ## Try it (judges)
 
-1. Open https://portcall-three.vercel.app, click **Try the demo**, and sign in with the judge login (or press **Fill judge login**).
+1. Open https://portcall-three.vercel.app, click **Try the demo**, and sign in (the public judge login was closed after the hackathon).
 2. On **Inbound**, open **PHGU 482913-7**: it discharged at Wando Welch this morning, its last free day is 4 days out, and it is due in Fairburn, GA a day later.
 3. Press **Call carriers**. The Call Wall shows every call live from Supabase Realtime: who is talking, the transcript, and each price stamping in the moment it is said, linked to the words it came from.
 4. When the calls end, Claude's decision and reasoning appear at the top. Quotes are ranked on real cost (all-in price plus estimated demurrage if pickup misses the last free day), and the **Lane history** panel shows how each carrier compares with its own last 90 days on this lane.

@@ -4,8 +4,6 @@ import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
-const JUDGE = { email: "judge@portcall.dev", password: "portcall-judge-2026" };
-
 export function LoginForm() {
   const next = useSearchParams().get("next") || "/dashboard";
   const [email, setEmail] = useState("");
@@ -59,21 +57,7 @@ export function LoginForm() {
       <button type="submit" className="btn-sodium w-full" disabled={loading}>
         {loading ? "Signing in..." : "Sign in"}
       </button>
-      <button
-        type="button"
-        className="btn-ghost w-full"
-        onClick={() => {
-          setEmail(JUDGE.email);
-          setPassword(JUDGE.password);
-        }}
-      >
-        Fill judge login
-      </button>
-      <p className="rounded-[12px] border border-dashed border-rule px-4 py-3 font-mono text-[12.5px] leading-6 text-muted">
-        {JUDGE.email}
-        <br />
-        {JUDGE.password}
-      </p>
+      <p className="text-[12.5px] leading-relaxed text-muted">The hackathon judge login is closed.</p>
     </form>
   );
 }

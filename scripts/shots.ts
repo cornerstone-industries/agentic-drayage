@@ -29,7 +29,8 @@ void runScript(async (r) => {
   }
   const baseUrl = (process.env.BASE_URL || "http://localhost:3000").trim().replace(/\/+$/, "");
   const email = process.env.JUDGE_EMAIL || "judge@portcall.dev";
-  const password = process.env.JUDGE_PASSWORD || "portcall-judge-2026";
+  const password = process.env.JUDGE_PASSWORD;
+  if (!password) throw new Error("Set JUDGE_PASSWORD to sign in for screenshots");
   const outDir = path.join(process.cwd(), "screenshots");
 
   const db = await r.run("supabase", () => connectAdmin(), "service role connected");

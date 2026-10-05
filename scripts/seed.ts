@@ -22,7 +22,8 @@ if (!url || !serviceKey) {
 const db = createClient<Database>(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
 
 const JUDGE_EMAIL = process.env.JUDGE_EMAIL || "judge@portcall.dev";
-const JUDGE_PASSWORD = process.env.JUDGE_PASSWORD || "portcall-judge-2026";
+const JUDGE_PASSWORD = process.env.JUDGE_PASSWORD;
+if (!JUDGE_PASSWORD) throw new Error("Set JUDGE_PASSWORD (the hackathon judge password is retired)");
 const DEMURRAGE = Number.parseInt(process.env.DEMURRAGE_PER_DAY_CENTS || "17500", 10);
 const FEE_BPS = Number.parseInt(process.env.PLATFORM_FEE_BPS || "300", 10);
 

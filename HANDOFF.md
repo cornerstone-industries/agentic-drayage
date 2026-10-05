@@ -4,7 +4,7 @@ Read in this order: this file, then `KEYS_TODO.md` (the runbook), then `CLAUDE.m
 
 ## State
 
-**Live: https://portcall-three.vercel.app** (Vercel project `portcall`, Cornerstone team; pushes to main auto-deploy). Judge login `judge@portcall.dev` / `portcall-judge-2026`.
+**Live: https://portcall-three.vercel.app** (Vercel project `portcall`, Cornerstone team; pushes to main auto-deploy). Judge login closed after the hackathon (Oct 4, 2026).
 
 Verified on production:
 - Supabase seeded; judge login works; RLS (judge sees 5 boxes, anon sees 0).
