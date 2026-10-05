@@ -8,6 +8,21 @@ Agents can't pick up a phone, and freight still runs on phone calls and email: 8
 
 Built for the Supabase Select Hackathon (theme: build something agents want).
 
+## Where things stand (Oct 4, 2026)
+
+- **3rd place** at the Supabase Select Hackathon (Oct 3, 2026). Everything built for the event is on `main`.
+- **Still running:** the Vercel app and the Supabase project (`portcall`, Cornerstone org). The public judge login is closed; nobody outside the team can sign in.
+- **Payments:** Stripe test mode only. The book, accept and deliver flow was demoed on stage but never run end to end with an automated test.
+- **Phones:** live calls go through a trial phone number that can only dial verified numbers, a few times an hour. Replay mode needs no phone.
+
+**To turn this into a product:**
+
+1. A paid phone number (Telnyx or Twilio) so the voice agent can call any carrier.
+2. Real sign-up: importers create their own account and add their own carriers; today one seeded importer owns everything.
+3. Two database guards held back during the event: one live booking per container (partial unique index), and importers may update only their own settings columns.
+4. Run the Stripe flow end to end (`npm run test:stripe`), then Stripe live mode and real carrier onboarding through Connect.
+5. Decide ownership of the Vercel project and Supabase org before anyone outside the team uses it.
+
 - **Live app:** https://portcall-three.vercel.app
 - **Judge login:** closed after the hackathon (Oct 4, 2026). The account still exists; set a new password with `JUDGE_PASSWORD=... npm run seed`.
 - **MCP endpoint:** `https://portcall-three.vercel.app/api/mcp` with `Authorization: Bearer <key from Settings > Agent access>`

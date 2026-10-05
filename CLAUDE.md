@@ -6,6 +6,8 @@ Read this whole file before writing code. It is the source of truth for scope, d
 
 ---
 
+> **The hackathon is over (3rd place, Oct 3, 2026).** Current state and next steps: "Where things stand" at the top of README.md. The rest of this file is the original build plan, kept as written.
+
 ## Build status (updated Oct 3, 1:15 PM PT)
 
 - Supabase project **portcall** in the Cornerstone org, ref `apbvdeghnqrvagjdscog` (us-east-1). Migrations in `supabase/migrations` are applied there (schema + RLS + Realtime, pg_cron auto-quote job, RLS helpers in a private schema). Supabase Realtime drives every live surface.
